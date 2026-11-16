@@ -106,7 +106,10 @@ tools/make_enemies.py           regenerates the battle enemies, crowned weekly b
 | POST | `/api/character/report/seen` | Mark the morning HP report as read |
 | POST | `/api/character/rebirth` | New character after death (`{ name, avatar }`) |
 | GET | `/api/shop` · POST `/api/shop/{id}/buy` · POST `/api/shop/rest-pass/use` | Shop |
-| GET `/api/menu/today` · POST `/api/menu/roll` · PUT `/api/menu/{id}/items` · POST `/api/menu/{id}/confirm` · POST `/api/menu/items/{id}/log` | | Menu gacha |
+| GET | `/api/menu/today` | Today's menu draw and targets |
+| POST | `/api/menu/roll` | Roll a menu (first roll free, then 30 Gems) |
+| PUT | `/api/menu/{id}/items` | Tune the dishes before confirming |
+| POST | `/api/menu/{id}/confirm` · `/api/menu/items/{id}/log` | Confirm the menu; log one dish with a tap |
 | GET | `/api/leaderboard?board=week\|level\|streak` | Leaderboard |
 | GET/POST | `/api/forge` · POST/DELETE `/api/forge/sprite` | Avatar, title, custom sprite |
 | GET | `/sprites/{name}` | Uploaded sprite sheets (public, they appear on the leaderboard) |
@@ -121,6 +124,7 @@ tools/make_enemies.py           regenerates the battle enemies, crowned weekly b
 | `Game__RequireProofPhoto` | `true` by default (plan B2) |
 | `Database__MigrateOnStartup` | Apply migrations and seed on start (default `true`) |
 | `Jobs__Key` | Secret for `/jobs/*`; jobs are refused while it is empty |
+| `Anthropic__ApiKey` | Claude API key for Phase 4 (never commit it; locally use `dotnet user-secrets set "Anthropic:ApiKey" ...`) |
 | `VITE_API_BASE` | Front end: API URL in production |
 
 ## Not in this phase

@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Local secrets (e.g. Anthropic:ApiKey) live outside the repo: dotnet user-secrets set ... -->
+    <UserSecretsId>dragon-and-fit-api</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
