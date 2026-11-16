@@ -29,6 +29,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<ShopItem> ShopItems => Set<ShopItem>();
     public DbSet<Food> Foods => Set<Food>();
     public DbSet<Purchase> Purchases => Set<Purchase>();
+    public DbSet<MealDraw> MealDraws => Set<MealDraw>();
+    public DbSet<MealDrawItem> MealDrawItems => Set<MealDrawItem>();
     public DbSet<MealLog> MealLogs => Set<MealLog>();
     public DbSet<DailySettlement> DailySettlements => Set<DailySettlement>();
     public DbSet<HpEvent> HpEvents => Set<HpEvent>();
@@ -88,6 +90,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 
         b.Entity<ShopItem>().HasIndex(x => x.Code).IsUnique().HasFilter("\"Code\" IS NOT NULL");
         b.Entity<Purchase>().HasIndex(x => new { x.UserId, x.ShopItemId });
+        b.Entity<MealDraw>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.Date, x.RollNo }).IsUnique();
+            e.HasMany(x => x.Items).WithOne().HasForeignKey(x => x.MealDrawId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<MealDrawItem>().Property(x => x.Servings).HasPrecision(4, 2);
 
         b.Entity<Food>(e =>
         {

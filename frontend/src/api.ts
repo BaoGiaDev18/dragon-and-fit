@@ -95,6 +95,7 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   del: (path: string) => request<null>('DELETE', path),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   /** Fetch a private file (proof photo) with the bearer token and return an object URL. */
   async blobUrl(path: string) {
     const res = await fetch(`${BASE}${path}`, { headers: tokens ? { Authorization: `Bearer ${tokens.accessToken}` } : {} })

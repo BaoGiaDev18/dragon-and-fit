@@ -13,8 +13,10 @@ export function AvatarSprite({ sheetUrl, stage = 1, scale = 3, silhouette = fals
 }) {
   const host = useRef<HTMLDivElement>(null)
   const size = FRAME * scale
+  const still = !animate
 
   useEffect(() => {
+    if (still) return
     let cancelled = false
     let app: Application | null = null
     ;(async () => {
@@ -41,7 +43,20 @@ export function AvatarSprite({ sheetUrl, stage = 1, scale = 3, silhouette = fals
       cancelled = true
       app?.destroy(true)
     }
-  }, [sheetUrl, stage, scale, silhouette, animate, size])
+  }, [sheetUrl, stage, scale, silhouette, animate, size, still])
+
+  // A still frame needs no WebGL: plain CSS keeps lists (leaderboard, evolution preview) light,
+  // since browsers only allow a limited number of WebGL canvases at once.
+  if (still) {
+    const row = Math.max(0, Math.min(5, stage - 1))
+    return (
+      <div aria-label="Avatar" style={{
+        width: size, height: size, imageRendering: 'pixelated', backgroundImage: `url(${sheetUrl})`,
+        backgroundSize: `${4 * size}px ${6 * size}px`, backgroundPosition: `0 ${-row * size}px`,
+        filter: silhouette ? 'brightness(0)' : undefined, opacity: silhouette ? 0.9 : 1,
+      }} />
+    )
+  }
 
   return <div ref={host} style={{ width: size, height: size, imageRendering: 'pixelated' }} aria-label="Avatar" />
 }

@@ -345,3 +345,78 @@ public class SpriteSheetTests
     [Fact] public void Wrong_size_fails() => Assert.Contains("256 × 384", ForgeService.ValidateSheet(Png(64, 64)));
     [Fact] public void Non_png_fails() => Assert.Equal("File phải là ảnh PNG.", ForgeService.ValidateSheet(new byte[100]));
 }
+
+public class MenuGachaTests
+{
+    static Food F(int id, string code, string name, decimal kcal, decimal p, params string[] tags) =>
+        new() { Id = id, Code = code, NameVi = name, Kcal = kcal, ProteinG = p, Tags = [.. tags], PriceVnd = 20000 };
+
+    static readonly List<Food> Foods =
+    [
+        F(1, "com_trang", "Cơm trắng", 195, 4, "carb", "home"),
+        F(2, "banh_mi_trung", "Bánh mì trứng", 380, 15, "meal", "breakfast"),
+        F(3, "trung_luoc", "Trứng gà luộc", 75, 6.5m, "protein", "home", "breakfast"),
+        F(4, "pho_bo", "Phở bò", 450, 25, "meal", "noodle"),
+        F(5, "bun_cha", "Bún chả", 550, 25, "meal"),
+        F(6, "uc_ga", "Ức gà áp chảo", 260, 45, "protein", "home"),
+        F(7, "bo_xao", "Thịt bò xào rau", 300, 25, "protein", "home"),
+        F(8, "rau", "Rau luộc", 50, 3, "veg", "home"),
+        F(9, "chuoi", "Chuối", 105, 1.3m, "fruit", "snack"),
+        F(10, "tra_sua", "Trà sữa", 400, 4, "drink", "sugary"),
+        F(11, "sua_chua", "Sữa chua Hy Lạp", 97, 9, "dairy", "snack", "protein"),
+    ];
+
+    [Fact]
+    public void Draw_lands_near_the_kcal_target_with_enough_protein()
+    {
+        var r = MenuGacha.Draw(Foods, 2000, 110, [], null, new Random(42));
+        Assert.InRange(r.Kcal, 1800, 2200);
+        Assert.True(r.ProteinG >= 99, $"protein {r.ProteinG}");
+    }
+
+    [Fact]
+    public void Sugary_drinks_never_drawn() =>
+        Assert.DoesNotContain(MenuGacha.Draw(Foods, 2000, 110, [], null, new Random(1)).Items, i => i.Food.Code == "tra_sua");
+
+    [Fact]
+    public void Dislikes_match_without_accents()
+    {
+        for (var seed = 0; seed < 20; seed++)
+            Assert.DoesNotContain(MenuGacha.Draw(Foods, 2000, 110, ["bo"], null, new Random(seed)).Items,
+                i => i.Food.Code is "bo_xao" or "pho_bo");
+    }
+
+    [Theory]
+    [InlineData(260, 45, "Epic")]   // 17 g per 100 kcal
+    [InlineData(380, 25, "Rare")]   // 6.6
+    [InlineData(195, 4, "Common")]
+    public void Rarity_by_protein_density(int kcal, int p, string rarity) =>
+        Assert.Equal(rarity, MenuGacha.Rarity(new Food { Kcal = kcal, ProteinG = p }));
+}
+
+public class BossTests
+{
+    [Theory]
+    [InlineData(12, 1.08, 13)]
+    [InlineData(30, 1.08, 33)]
+    [InlineData(40, 1.10, 44)]
+    [InlineData(5, 1.10, 6)]
+    public void Boss_target_beats_the_best(int best, double factor, int expected) =>
+        Assert.Equal(expected, QuestGenerator.BossTarget(best, (decimal)factor));
+
+    [Fact]
+    public void Boss_days()
+    {
+        Assert.True(QuestGenerator.IsWeeklyBossDay(new DateOnly(2026, 11, 22)));
+        Assert.True(QuestGenerator.IsMonthlyBossDay(new DateOnly(2026, 11, 30)));
+        Assert.False(QuestGenerator.IsMonthlyBossDay(new DateOnly(2026, 11, 29)));
+    }
+
+    [Fact]
+    public void Skipping_a_boss_costs_10_losing_costs_nothing()
+    {
+        var day = new SettlementInput(2000, 2000, 3, [new("q", 1, 1, true)], true, false, 0, null, 0, 100, BossSkipped: true);
+        Assert.Equal(10, SettlementRules.Settle(day).Damage);
+        Assert.Equal(0, SettlementRules.Settle(day with { BossSkipped = false }).Damage);
+    }
+}

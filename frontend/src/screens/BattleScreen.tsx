@@ -27,7 +27,13 @@ export function BattleScreen({ quest, sheetUrl, stage, proofRequired, onClose, o
   onClose: () => void; onDone: (r: Reward) => void
 }) {
   const group = quest.exercise?.group ?? 'push'
-  const enemy = ENEMIES[group] ?? ENEMIES.push
+  const base = ENEMIES[group] ?? ENEMIES.push
+  // Bosses: a crowned king of the group's enemy every Sunday, the Ember Dragon at the end of the month.
+  const enemy = quest.bossKind === 'monthly'
+    ? { name: 'Rồng Than Hồng', sprite: '/enemies/dragon.png', line: quest.narration, flip: false }
+    : quest.bossKind === 'weekly'
+    ? { ...base, name: `Vua ${base.name}`, sprite: base.sprite.replace('.png', '_boss.png'), line: quest.narration }
+    : base
   const seconds = quest.unit === 'seconds'
   const maxHp = quest.sets * quest.targetValue
   const [sets, setSets] = useState<number[]>([])
@@ -133,12 +139,13 @@ export function BattleScreen({ quest, sheetUrl, stage, proofRequired, onClose, o
               <AvatarSprite sheetUrl={sheetUrl} stage={stage} scale={3} />
             </div>
             <div style={{ justifySelf: 'end', textAlign: 'center', position: 'relative' }}>
+              {quest.bossKind && <div className="pixel" style={{ fontSize: 16, color: '#ff6a5e', letterSpacing: 2 }}>BOSS {quest.bossKind === 'weekly' ? 'TUẦN' : 'THÁNG'}</div>}
               <div className="pixel" style={{ fontSize: 20 }}>{enemy.name}</div>
               <div className="bar hp" style={{ width: 200, marginBottom: 6 }}>
                 <span style={{ width: `${(hp / maxHp) * 100}%` }} />
               </div>
               <div className="pixel dim" style={{ fontSize: 16 }}>HP {hp}/{maxHp}</div>
-              <div className={`enemy ${hurt ? 'hurt' : ''} ${phase === 'victory' && won ? 'defeated' : ''}`}
+              <div className={`enemy ${quest.bossKind ? 'boss' : ''} ${hurt ? 'hurt' : ''} ${phase === 'victory' && won ? 'defeated' : ''}`}
                 style={{ backgroundImage: `url(${enemy.sprite})`, transform: enemy.flip ? 'scaleX(-1)' : undefined }} />
               {floats.map(f => <span key={f.id} className="dmg-float pixel">{f.text}</span>)}
             </div>
@@ -187,7 +194,9 @@ export function BattleScreen({ quest, sheetUrl, stage, proofRequired, onClose, o
                 {won ? `Hạ gục ${enemy.name}!` : `${enemy.name} rút lui (${dealt}/${maxHp})`}
               </div>
               <p className="dim" style={{ margin: '4px 0 10px' }}>
-                {won ? 'Gửi ảnh bằng chứng để nhận phần thưởng.' : 'Làm thiếu vẫn nhận thưởng theo tỉ lệ, và mất ít máu hơn là bỏ hẳn.'}
+                {won ? 'Gửi ảnh bằng chứng để nhận phần thưởng.'
+                  : quest.bossKind ? 'Thua boss không bị trừ máu. Vẫn nhận thưởng theo tỉ lệ; lần sau sẽ thắng.'
+                  : 'Làm thiếu vẫn nhận thưởng theo tỉ lệ, và mất ít máu hơn là bỏ hẳn.'}
               </p>
               <div className="field">
                 <label htmlFor="battle-photo">Ảnh bằng chứng{proofRequired && <span className="accent"> *</span>}</label>

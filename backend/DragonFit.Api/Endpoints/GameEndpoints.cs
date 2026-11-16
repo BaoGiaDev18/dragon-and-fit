@@ -36,6 +36,18 @@ public static class GameEndpoints
             return Results.NoContent();
         });
 
+        // Menu gacha and leaderboard
+        var menu = api.MapGroup("/menu");
+        menu.MapGet("/today", async (ClaimsPrincipal user, MenuService svc) => Results.Ok(await svc.TodayAsync(Uid(user))));
+        menu.MapPost("/roll", async (ClaimsPrincipal user, MenuService svc) => Results.Ok(await svc.RollAsync(Uid(user))));
+        menu.MapPut("/{id:long}/items", async (long id, List<MenuItemInput> items, ClaimsPrincipal user, MenuService svc) =>
+            Results.Ok(await svc.UpdateItemsAsync(Uid(user), id, items)));
+        menu.MapPost("/{id:long}/confirm", async (long id, ClaimsPrincipal user, MenuService svc) => Results.Ok(await svc.ConfirmAsync(Uid(user), id)));
+        menu.MapPost("/items/{id:long}/log", async (long id, ClaimsPrincipal user, MenuService svc) =>
+            Results.Ok(new { reward = await svc.LogItemAsync(Uid(user), id) }));
+        api.MapGet("/leaderboard", async (string? board, ClaimsPrincipal user, LeaderboardService svc) =>
+            Results.Ok(await svc.GetAsync(Uid(user), board ?? "week")));
+
         // Shop and forge (Phase 3)
         api.MapGet("/shop", async (ClaimsPrincipal user, ShopService svc) => Results.Ok(await svc.GetAsync(Uid(user))));
         api.MapPost("/shop/{id:int}/buy", async (int id, ClaimsPrincipal user, ShopService svc) => Results.Ok(await svc.BuyAsync(Uid(user), id)));

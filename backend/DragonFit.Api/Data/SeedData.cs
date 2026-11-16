@@ -72,6 +72,10 @@ public static class SeedData
         var existing = await db.Titles.Select(t => t.Code).ToListAsync();
         foreach (var (level, code, name) in LevelTitles.Where(t => !existing.Contains(t.Code)))
             db.Titles.Add(new Title { Code = code, Name = name, Source = "Level", MinLevel = level });
+        // Monthly boss titles: "Conqueror of the Iron Moon" for beating all four bosses at the end of November.
+        for (var m = 1; m <= 12; m++)
+            if (!existing.Contains($"moon_{m:00}"))
+                db.Titles.Add(new Title { Code = $"moon_{m:00}", Name = $"Conqueror of the {Game.QuestService.Moons[m - 1]}", Source = "Boss" });
         await db.SaveChangesAsync();
     }
 
@@ -145,6 +149,8 @@ public static class SeedData
             new QuestTemplate { Code = "daily_mobility", Type = "daily", Kind = "exercise", BaseXp = 25, BaseGems = 10, BaseDamage = 5 },
             new QuestTemplate { Code = "daily_steps", Type = "daily", Kind = "steps", BaseXp = 30, BaseGems = 15, BaseDamage = 5 },
             new QuestTemplate { Code = "daily_protein", Type = "daily", Kind = "protein", BaseXp = 30, BaseGems = 15, BaseDamage = 5 },
+            new QuestTemplate { Code = "boss_weekly", Type = "boss", Kind = "exercise", BaseXp = 200, BaseGems = 100, BaseDamage = 10 },
+            new QuestTemplate { Code = "boss_monthly", Type = "boss", Kind = "exercise", BaseXp = 150, BaseGems = 75, BaseDamage = 10 },
         };
         var existing = await db.QuestTemplates.Select(q => q.Code).ToListAsync();
         db.QuestTemplates.AddRange(list.Where(q => !existing.Contains(q.Code)));

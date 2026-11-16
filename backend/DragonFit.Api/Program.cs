@@ -48,6 +48,8 @@ builder.Services.AddScoped<MealService>();
 builder.Services.AddScoped<CharacterService>();
 builder.Services.AddScoped<ShopService>();
 builder.Services.AddScoped<ForgeService>();
+builder.Services.AddScoped<MenuService>();
+builder.Services.AddScoped<LeaderboardService>();
 
 var app = builder.Build();
 

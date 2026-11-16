@@ -9,10 +9,11 @@ import { BattleScreen } from './BattleScreen'
 import { ForgeScreen } from './ForgeScreen'
 import { MealScreen } from './MealScreen'
 import { QuestBoard } from './QuestBoard'
+import { LeaderboardScreen } from './LeaderboardScreen'
 import { ShopScreen } from './ShopScreen'
 import { StatusScreen } from './StatusScreen'
 
-type Tab = 'status' | 'quests' | 'meals' | 'shop' | 'forge'
+type Tab = 'status' | 'quests' | 'meals' | 'shop' | 'forge' | 'ranks'
 type DialogName = 'metrics' | 'rest' | null
 
 export function Game({ onLogout }: { onLogout: () => void }) {
@@ -48,6 +49,7 @@ export function Game({ onLogout }: { onLogout: () => void }) {
   useKey('3', () => setTab('meals'))
   useKey('4', () => setTab('shop'))
   useKey('5', () => setTab('forge'))
+  useKey('6', () => setTab('ranks'))
 
   async function closeReport() {
     setReportClosed(true)
@@ -56,16 +58,17 @@ export function Game({ onLogout }: { onLogout: () => void }) {
 
   async function changed(reward?: Reward) {
     if (reward) {
-      if (reward.levelAfter > reward.levelBefore || reward.evolvedToStage) { sfx('levelup'); setLevelUp(reward) }
+      if (reward.levelAfter > reward.levelBefore || reward.evolvedToStage || reward.newTitles.length > 0) { sfx('levelup'); setLevelUp(reward) }
       else if (reward.gemsGained > 0) sfx('gem')
-      if (!(reward.levelAfter > reward.levelBefore || reward.evolvedToStage)) toast.show(`+${reward.xpGained} XP · +${reward.gemsGained} Gem${reward.questStatus === 'Partial' ? ' (hoàn thành một phần)' : ''}`)
+      if (reward.bonus && !(reward.levelAfter > reward.levelBefore || reward.evolvedToStage || reward.newTitles.length > 0)) window.setTimeout(() => toast.show(reward.bonus!), 3400)
+      if (!(reward.levelAfter > reward.levelBefore || reward.evolvedToStage || reward.newTitles.length > 0)) toast.show(`+${reward.xpGained} XP · +${reward.gemsGained} Gem${reward.questStatus === 'Partial' ? ' (hoàn thành một phần)' : ''}`)
     }
     await load()
   }
 
   if (!status || !board) return <div className="scene"><p className="pixel dim" style={{ fontSize: 24 }}>Đang mở cửa doanh trại…</p></div>
 
-  const tabs: [Tab, string, string][] = [['status', 'Trạng thái', '1'], ['quests', 'Nhiệm vụ', '2'], ['meals', 'Thực đơn', '3'], ['shop', 'Cửa hàng', '4'], ['forge', 'Lò rèn', '5']]
+  const tabs: [Tab, string, string][] = [['status', 'Trạng thái', '1'], ['quests', 'Nhiệm vụ', '2'], ['meals', 'Thực đơn', '3'], ['shop', 'Cửa hàng', '4'], ['forge', 'Lò rèn', '5'], ['ranks', 'Xếp hạng', '6']]
   return (
     <div className="scene" style={{ paddingTop: 26 }}>
       <header style={{ width: '100%', maxWidth: 1040, marginBottom: 40 }}>
@@ -84,7 +87,6 @@ export function Game({ onLogout }: { onLogout: () => void }) {
               <span className="kbd" style={{ fontSize: 14 }}>{key}</span>{label}
             </button>
           ))}
-          <button className="choice" disabled style={{ opacity: 0.4, cursor: 'not-allowed', whiteSpace: 'nowrap' }} title="Mở ở giai đoạn sau">Xếp hạng 🔒</button>
         </nav>
       </header>
 
@@ -92,9 +94,10 @@ export function Game({ onLogout }: { onLogout: () => void }) {
       {tab === 'quests' && <QuestBoard board={board} gems={status.gems} onChanged={changed} toast={toast.show} onGoMeals={() => setTab('meals')} onBattle={setBattle} />}
       {tab === 'shop' && <ShopScreen onChanged={() => void load()} toast={toast.show} />}
       {tab === 'forge' && <ForgeScreen onChanged={() => void load()} toast={toast.show} />}
+      {tab === 'ranks' && <LeaderboardScreen toast={toast.show} />}
       {tab === 'meals' && <MealScreen onReward={r => changed(r)} toast={toast.show} />}
 
-      <Keys hints={[['1–5', 'Chuyển màn hình'], ['Enter', 'Xác nhận'], ['Esc', 'Đóng']]} />
+      <Keys hints={[['1–6', 'Chuyển màn hình'], ['Enter', 'Xác nhận'], ['Esc', 'Đóng']]} />
       {battle && status.character.avatar && (
         <BattleScreen quest={battle} sheetUrl={status.character.avatar.spriteSheetUrl} stage={status.character.evolutionStage}
           proofRequired={board.proofRequired ?? true} onClose={() => setBattle(null)} onDone={r => { setBattle(null); void changed(r) }} />
@@ -115,15 +118,16 @@ function LevelUp({ reward, status, onClose }: { reward: Reward; status: Status; 
   return (
     <div className="overlay" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}>
-        <Window title={reward.evolvedToStage ? 'Tiến hóa' : 'Level Up'} style={{ width: 420, textAlign: 'center' }}>
+        <Window title={reward.evolvedToStage ? 'Tiến hóa' : reward.levelAfter > reward.levelBefore ? 'Level Up' : 'Danh hiệu mới'} style={{ width: 420, textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', margin: '6px 0 10px' }}>
             {c.avatar && <AvatarSprite sheetUrl={c.avatar.spriteSheetUrl} stage={reward.evolvedToStage ?? c.evolutionStage} scale={3} />}
           </div>
           <div className="pixel" style={{ fontSize: 44, color: 'var(--glow)', textShadow: '0 0 18px rgba(255,182,77,0.5)' }}>
-            Lv {reward.levelBefore} → {reward.levelAfter}
+            {reward.levelAfter > reward.levelBefore ? `Lv ${reward.levelBefore} → ${reward.levelAfter}` : reward.newTitles[0]}
           </div>
           <div className="pixel" style={{ fontSize: 20 }}>+{reward.xpGained} XP · +{reward.gemsGained} Gem</div>
-          {reward.newTitles.map(t => <p key={t} className="notice" style={{ justifyContent: 'center' }}>Danh hiệu mới: {t}</p>)}
+          {reward.levelAfter > reward.levelBefore && reward.newTitles.map(t => <p key={t} className="notice" style={{ justifyContent: 'center' }}>Danh hiệu mới: {t}</p>)}
+          {reward.bonus && <p className="notice" style={{ justifyContent: 'center' }}>{reward.bonus}</p>}
           {reward.evolvedToStage && <p className="notice" style={{ justifyContent: 'center' }}>Hình hài tiến hóa lên bậc {reward.evolvedToStage}</p>}
           <button className="btn" onClick={onClose} style={{ marginTop: 10 }}>Tiếp tục</button>
         </Window>

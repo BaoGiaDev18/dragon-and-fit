@@ -48,7 +48,7 @@ export type Status = {
 }
 
 export type Quest = {
-  id: string; slot: number; title: string; narration: string; sets: number; targetValue: number; unit: string
+  id: string; slot: number; title: string; narration: string; sets: number; targetValue: number; unit: string; bossKind: 'weekly' | 'monthly' | null
   xp: number; gems: number; isRequired: boolean; status: 'Pending' | 'Completed' | 'Partial'; doneValue: number | null
   hasProof: boolean; awardedXp: number; awardedGems: number; kind: string | null; canReroll: boolean; canReport: boolean
   exercise: { code: string; nameVi: string; group: string; tier: number; formTips: string } | null
@@ -60,7 +60,7 @@ export type QuestBoard = {
 
 export type Reward = {
   xpGained: number; gemsGained: number; levelBefore: number; levelAfter: number; streakDays: number
-  newTitles: string[]; evolvedToStage: number | null; questStatus: string
+  newTitles: string[]; evolvedToStage: number | null; questStatus: string; bonus: string | null
 }
 
 // ------------------------------------------------------------ Phase 2
@@ -93,3 +93,21 @@ export type Death = {
 }
 
 export type Me = { email: string; onboarding: string; hasCharacter: boolean; death: Death | null }
+
+// ------------------------------------------------------------ Gacha and leaderboard
+
+export type MenuItem = {
+  id: number; slot: string; servings: number; rarity: 'Common' | 'Rare' | 'Epic'; logged: boolean
+  food: { id: number; nameVi: string; serving: string; kcal: number; proteinG: number }; kcal: number; proteinG: number
+}
+export type MenuDraw = {
+  id: number; rollNo: number; status: 'Rolled' | 'Confirmed'; costGems: number
+  totals: { kcal: number; proteinG: number; priceVnd: number }; onTarget: boolean; proteinOk: boolean; items: MenuItem[]
+}
+export type MenuToday = { date: string; rerollCost: number; freeRoll: boolean; targets: { kcal: number; proteinG: number }; draw: MenuDraw | null }
+
+export type LeaderRow = {
+  rank: number; isMe: boolean; name: string; level: number; title: string | null; stage: number
+  sprite: string | null; weekXp: number; streak: number; score: number
+}
+export type Leaderboard = { board: string; weekStart: string; players: number; top: LeaderRow[]; me: LeaderRow | null }

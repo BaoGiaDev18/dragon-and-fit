@@ -4,7 +4,7 @@ namespace DragonFit.Api.Game;
 
 public record QuestDraft(
     string TemplateCode, int Slot, int? ExerciseId, int Sets, int TargetValue, string Unit,
-    string Title, string Narration, int Xp, int Gems, bool IsRequired);
+    string Title, string Narration, int Xp, int Gems, bool IsRequired, string? BossKind = null);
 
 public record LastTarget(int TargetValue, bool Completed);
 
@@ -19,7 +19,8 @@ public record QuestContext(
     IReadOnlyDictionary<int, LastTarget> LastTargets,       // exerciseId → last target given and whether it was finished
     int? BaselineSteps,
     int ProteinTargetG,
-    int HpPercent);
+    int HpPercent,
+    IReadOnlyDictionary<int, int>? BestValues = null);     // exerciseId → best reps/seconds in the last 28 days (bosses)
 
 /// <summary>
 /// Rule-based daily quest generator for the MVP (Phase 1). The AI Dungeon Master (Phase 4)
@@ -90,7 +91,48 @@ public static class QuestGenerator
             $"Đi bộ {steps:N0} bước".Replace(',', '.'), Narrate("steps", ctx.Date), 30, 15, true));
         drafts.Add(new QuestDraft("daily_protein", slot, null, 1, ctx.ProteinTargetG, "g",
             $"Nạp đủ {ctx.ProteinTargetG} g protein", Narrate("protein", ctx.Date), 30, 15, true));
+        drafts.AddRange(BossDrafts(allowed, ctx));
         return drafts;
+    }
+
+    public static readonly string[] BossGroups = ["push", "legs", "pull", "core"];
+
+    /// <summary>Weekly boss on Sunday (one group, rotating), monthly boss on the last day of the month (all four groups).</summary>
+    public static bool IsWeeklyBossDay(DateOnly d) => d.DayOfWeek == DayOfWeek.Sunday;
+    public static bool IsMonthlyBossDay(DateOnly d) => d.AddDays(1).Day == 1;
+
+    /// <summary>
+    /// Boss target = the player's best single set of the last 28 days + 8% (weekly) or + 10% (monthly),
+    /// at least one more than the best (plan: "a little harder than usual"). One all-out set.
+    /// </summary>
+    public static int BossTarget(int best, decimal factor) => Math.Max(best + 1, (int)Math.Ceiling(best * factor));
+
+    static IEnumerable<QuestDraft> BossDrafts(List<Exercise> allowed, QuestContext ctx)
+    {
+        QuestDraft? Boss(string group, string kind, int slot, decimal factor, int xp, int gems)
+        {
+            var ex = Pick(allowed, group, ctx.GroupTier.GetValueOrDefault(group, 1));
+            if (ex is null) return null;
+            var best = ctx.BestValues?.GetValueOrDefault(ex.Id) ?? 0;
+            if (best <= 0) best = ctx.BaselineReps.GetValueOrDefault(ex.Id);
+            if (best <= 0) best = TargetFor(ex, ctx);
+            var target = BossTarget(best, factor);
+            var unit = ex.Unit == "seconds" ? "giây " : "";
+            var title = kind == "weekly" ? $"BOSS TUẦN · {target} {unit}{ex.NameVi} liên tục" : $"BOSS THÁNG · {target} {unit}{ex.NameVi} liên tục";
+            var line = kind == "weekly"
+                ? $"Một kẻ địch mang vương miện chặn đường. Kỷ lục của ngươi là {best}; hôm nay phải vượt qua nó."
+                : $"Rồng Than Hồng thức giấc cuối tháng. Vượt kỷ lục {best} của ngươi để hạ nó.";
+            return new QuestDraft($"boss_{kind}", slot, ex.Id, 1, target, ex.Unit, title, line, xp, gems, false, kind);
+        }
+
+        if (IsWeeklyBossDay(ctx.Date))
+        {
+            var group = BossGroups[ctx.Date.DayNumber / 7 % BossGroups.Length];
+            if (Boss(group, "weekly", 20, 1.08m, 200, 100) is { } w) yield return w;
+        }
+        if (IsMonthlyBossDay(ctx.Date))
+            for (var i = 0; i < BossGroups.Length; i++)
+                if (Boss(BossGroups[i], "monthly", 30 + i, 1.10m, 150, 75) is { } m) yield return m;
     }
 
     /// <summary>

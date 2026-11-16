@@ -44,7 +44,7 @@ export function QuestBoard({ board, gems, onChanged, toast, onGoMeals, onBattle 
             {board.quests.map(q => {
               const finished = q.status === 'Completed'
               return (
-                <article key={q.id} className="inset" style={{
+                <article key={q.id} className={`inset ${q.bossKind ? 'quest-boss' : ''}`} style={{
                   display: 'grid', gridTemplateColumns: '1fr auto', gap: 14, alignItems: 'center',
                   borderColor: finished ? 'rgba(127,191,90,0.45)' : q.status === 'Partial' ? 'rgba(240,163,58,0.45)' : undefined,
                   opacity: finished ? 0.75 : 1,
@@ -52,7 +52,7 @@ export function QuestBoard({ board, gems, onChanged, toast, onGoMeals, onBattle 
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
                       <span className="pixel" style={{ fontSize: 22, color: finished ? 'var(--good)' : 'var(--text)' }}>
-                        {finished ? '✔ ' : q.status === 'Partial' ? '◐ ' : '◇ '}{q.title}
+                        {finished ? '✔ ' : q.status === 'Partial' ? '◐ ' : q.bossKind ? '☠ ' : '◇ '}{q.title}
                       </span>
                       {q.exercise && <span className="dim pixel" style={{ fontSize: 15 }}>Bậc {q.exercise.tier}</span>}
                     </div>

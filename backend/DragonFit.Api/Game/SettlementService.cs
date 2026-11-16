@@ -45,6 +45,9 @@ public class SettlementService(AppDbContext db, TimeProvider clock)
     {
         var meals = await db.MealLogs.Where(m => m.UserId == character.UserId && m.Date == date)
             .Select(m => new { m.Servings, m.Food!.Kcal, m.Food.ProteinG }).ToListAsync();
+        var bosses = await db.QuestInstances.Where(q => q.CharacterId == character.Id && q.Date == date && q.BossKind != null)
+            .Select(q => q.DoneValue).ToListAsync();
+        var bossSkipped = bosses.Count > 0 && bosses.All(v => v == null || v == 0) && character.RestPassDate != date;
         var quests = await db.QuestInstances.Where(q => q.CharacterId == character.Id && q.Date == date && q.IsRequired)
             .Select(q => new { q.Title, q.TargetValue, q.DoneValue, q.Status, q.Sets, Kcal = q.Exercise != null ? q.Exercise.KcalPerRep : 0 })
             .ToListAsync();
@@ -68,7 +71,7 @@ public class SettlementService(AppDbContext db, TimeProvider clock)
             targetKcal, actualKcal, meals.Count,
             quests.Select(q => new QuestResult(q.Title, q.TargetValue, q.DoneValue ?? 0, q.Status == QuestStatus.Completed)).ToList(),
             ScheduledRestDay: !training || character.RestPassDate == date, RestMode: restMode, MissedQuestCountIfNone: training ? 4 : 0,
-            SleepHours: sleep, PreviousPerfectStreak: previous, HpBefore: character.CurrentHp));
+            SleepHours: sleep, PreviousPerfectStreak: previous, HpBefore: character.CurrentHp, BossSkipped: bossSkipped));
 
         db.DailySettlements.Add(new DailySettlement
         {

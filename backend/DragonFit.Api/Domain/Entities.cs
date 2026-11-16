@@ -268,6 +268,7 @@ public class QuestInstance
     public int Xp { get; set; }
     public int Gems { get; set; }
     public bool IsRequired { get; set; } = true;
+    public string? BossKind { get; set; }             // null / weekly / monthly
     public QuestStatus Status { get; set; }
     public int? DoneValue { get; set; }
     public int AwardedXp { get; set; }
@@ -383,4 +384,34 @@ public class HpEvent
     public string Reason { get; set; } = "";      // Overeat / Undereat / NoFoodLog / QuestMissed / QuestPartial / DailyCap / PerfectDay / Sleep
     public string? Detail { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+// ---------------------------------------------------------------- Menu gacha (B3)
+
+public enum MealDrawStatus { Rolled, Confirmed }
+
+public class MealDraw
+{
+    public long Id { get; set; }
+    public string UserId { get; set; } = "";
+    public DateOnly Date { get; set; }
+    public int RollNo { get; set; }
+    public int TargetKcal { get; set; }
+    public int TargetProteinG { get; set; }
+    public int CostGems { get; set; }
+    public MealDrawStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public List<MealDrawItem> Items { get; set; } = [];
+}
+
+public class MealDrawItem
+{
+    public long Id { get; set; }
+    public long MealDrawId { get; set; }
+    public int FoodId { get; set; }
+    public Food? Food { get; set; }
+    public decimal Servings { get; set; } = 1;
+    public string Slot { get; set; } = "lunch";
+    public string Rarity { get; set; } = "Common";   // Common / Rare / Epic
+    public long? MealLogId { get; set; }             // set once the item was eaten and logged
 }

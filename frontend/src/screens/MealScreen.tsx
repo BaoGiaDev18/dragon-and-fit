@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
+import { GachaPanel } from '../components/GachaPanel'
 import { Window } from '../components/ui'
 import type { Food, MealDay, Reward } from '../types'
 
@@ -90,6 +91,8 @@ export function MealScreen({ onReward, toast }: { onReward: (r: Reward) => void;
       {over && <p className="notice" style={{ color: '#ff7a6e' }}>Vượt quá mục tiêu hơn 10%: ăn đúng như vậy thì sáng mai sẽ mất máu.</p>}
       {under && <p className="notice">Còn thiếu khá nhiều so với mục tiêu. Ăn quá ít cũng bị trừ máu.</p>}
       {day.logs.length === 0 && <p className="notice">Chưa ghi bữa nào. Cả ngày không ghi bữa nào sẽ mất 10 máu.</p>}
+
+      {day.open && <GachaPanel foods={foods} toast={toast} onLogged={async r => { await loadDay(); if (r) onReward(r); else toast('Đã ghi vào nhật ký ăn uống') }} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 24, marginTop: 10 }}>
         <section>

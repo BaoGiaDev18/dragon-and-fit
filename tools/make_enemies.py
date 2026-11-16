@@ -85,7 +85,41 @@ def ghost(f):  # core: storm wraith
     rect(px, 4, 15 + s, 6, 16 + s, dark); rect(px, 26, 15 + s, 28, 16 + s, dark)  # arms of wind
     return px
 
-ENEMIES = {"golem": golem, "wolf": wolf, "kraken": kraken, "ghost": ghost}
+def dragon(f):  # monthly boss: ember dragon
+    px = blank(); s = 1 if f == 1 else 0
+    scale, belly, dark, fire = (176, 52, 40), (236, 170, 90), (112, 30, 26), (255, 200, 80)
+    # wings
+    for i in range(8):
+        rect(px, 3 + i, 6 + i // 2 + s, 3 + i, 15 - i // 3, dark)
+        rect(px, 28 - i, 6 + i // 2 + s, 28 - i, 15 - i // 3, dark)
+    ellipse(px, 16, 19 + s, 8, 8, scale)          # body
+    ellipse(px, 16, 21 + s, 4, 5, belly)          # belly
+    ellipse(px, 16, 9 + s, 6, 5, scale)           # head
+    rect(px, 11, 2 + s, 12, 5 + s, belly); rect(px, 20, 2 + s, 21, 5 + s, belly)  # horns
+    rect(px, 13, 8 + s, 14, 9 + s, fire); rect(px, 18, 8 + s, 19, 9 + s, fire)     # eyes
+    rect(px, 14, 12 + s, 18, 13 + s, dark)                                          # mouth
+    rect(px, 10, 26, 13, 28, dark); rect(px, 19, 26, 22, 28, dark)                # legs
+    rect(px, 24, 22 + s, 29, 24 + s, scale); rect(px, 29, 20 + s, 30, 22 + s, dark)  # tail
+    if f == 1:
+        rect(px, 15, 14, 17, 16, fire)                                              # ember breath
+    return px
+
+def crowned(draw):
+    def wrapped(f):
+        px = draw(f)
+        top = next(y for y in range(W) if any(px[y]))
+        cols = [x for x in range(W) if px[top][x] is not None]
+        cx = (min(cols) + max(cols)) // 2
+        gold = (236, 184, 72)
+        y = max(0, top - 3)
+        rect(px, cx - 3, y + 1, cx + 3, y + 2, gold)
+        for dx in (-3, 0, 3):
+            px[y][min(W - 1, max(0, cx + dx))] = gold
+        return px
+    return wrapped
+
+ENEMIES = {"golem": golem, "wolf": wolf, "kraken": kraken, "ghost": ghost, "dragon": dragon,
+           "golem_boss": crowned(golem), "wolf_boss": crowned(wolf), "kraken_boss": crowned(kraken), "ghost_boss": crowned(ghost)}
 
 def render(px, hurt=False):
     outline(px)

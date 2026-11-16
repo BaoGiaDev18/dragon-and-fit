@@ -542,6 +542,85 @@ namespace DragonFit.Api.Data.Migrations
                     b.ToTable("HpEvents");
                 });
 
+            modelBuilder.Entity("DragonFit.Api.Domain.MealDraw", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("CostGems")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("RollNo")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TargetKcal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TargetProteinG")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date", "RollNo")
+                        .IsUnique();
+
+                    b.ToTable("MealDraws");
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.MealDrawItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("FoodId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("MealDrawId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("MealLogId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Rarity")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Servings")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("numeric(4,2)");
+
+                    b.Property<string>("Slot")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FoodId");
+
+                    b.HasIndex("MealDrawId");
+
+                    b.ToTable("MealDrawItems");
+                });
+
             modelBuilder.Entity("DragonFit.Api.Domain.MealLog", b =>
                 {
                     b.Property<long>("Id")
@@ -872,6 +951,9 @@ namespace DragonFit.Api.Data.Migrations
 
                     b.Property<int>("AwardedXp")
                         .HasColumnType("integer");
+
+                    b.Property<string>("BossKind")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("CharacterId")
                         .HasColumnType("uuid");
@@ -1389,6 +1471,23 @@ namespace DragonFit.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("DragonFit.Api.Domain.MealDrawItem", b =>
+                {
+                    b.HasOne("DragonFit.Api.Domain.Food", "Food")
+                        .WithMany()
+                        .HasForeignKey("FoodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DragonFit.Api.Domain.MealDraw", null)
+                        .WithMany("Items")
+                        .HasForeignKey("MealDrawId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Food");
+                });
+
             modelBuilder.Entity("DragonFit.Api.Domain.MealLog", b =>
                 {
                     b.HasOne("DragonFit.Api.Domain.Food", "Food")
@@ -1541,6 +1640,11 @@ namespace DragonFit.Api.Data.Migrations
             modelBuilder.Entity("DragonFit.Api.Domain.AvatarModel", b =>
                 {
                     b.Navigation("Evolutions");
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.MealDraw", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("DragonFit.Api.Domain.OnboardingQuestion", b =>

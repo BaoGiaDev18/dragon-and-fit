@@ -12,7 +12,7 @@ public class GameException(string message, int status = 400) : Exception(message
 
 public record RewardResult(
     int XpGained, int GemsGained, int LevelBefore, int LevelAfter, int StreakDays,
-    IReadOnlyList<string> NewTitles, int? EvolvedToStage, string QuestStatus);
+    IReadOnlyList<string> NewTitles, int? EvolvedToStage, string QuestStatus, string? Bonus = null);
 
 public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage storage, IConfiguration config, SettlementService settlement)
 {
@@ -57,7 +57,7 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
 
     static object Dto(QuestInstance q) => new
     {
-        q.Id, q.Slot, q.Title, q.Narration, q.Sets, q.TargetValue, q.Unit, q.Xp, q.Gems, q.IsRequired,
+        q.Id, q.Slot, q.Title, q.Narration, q.Sets, q.TargetValue, q.Unit, q.Xp, q.Gems, q.IsRequired, q.BossKind,
         status = q.Status.ToString(), q.DoneValue, hasProof = q.ProofUrl != null, q.AwardedXp, q.AwardedGems,
         kind = q.Template?.Kind,
         exercise = q.Exercise is null ? null : new { q.Exercise.Code, q.Exercise.NameVi, q.Exercise.Group, q.Exercise.Tier, q.Exercise.FormTips },
@@ -78,7 +78,7 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
             {
                 UserId = character.UserId, CharacterId = character.Id, TemplateId = templates[d.TemplateCode].Id, Date = today,
                 Slot = d.Slot, ExerciseId = d.ExerciseId, Sets = d.Sets, TargetValue = d.TargetValue, Unit = d.Unit,
-                Title = d.Title, Narration = d.Narration, Xp = d.Xp, Gems = d.Gems, IsRequired = d.IsRequired,
+                Title = d.Title, Narration = d.Narration, Xp = d.Xp, Gems = d.Gems, IsRequired = d.IsRequired, BossKind = d.BossKind,
             });
         try { await db.SaveChangesAsync(); }
         catch (DbUpdateException)
@@ -112,8 +112,19 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
             .OrderByDescending(m => m.Date).Select(m => m.WeightKg).FirstOrDefaultAsync() ?? 60m;
         var protein = Nutrition.Calculate(profile.Sex, weight, profile.HeightCm, today.Year - profile.BirthYear, profile.TrainingDaysPerWeek, profile.Goal).ProteinG;
 
+        // Personal bests of the last 28 days (single set) for the boss targets.
+        var since = today.AddDays(-28);
+        var sinceUtc = since.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var setBests = await db.WorkoutSets
+            .Where(s => db.WorkoutSessions.Any(w => w.Id == s.SessionId && w.UserId == character.UserId && w.StartedAt >= sinceUtc))
+            .GroupBy(s => s.ExerciseId).Select(g => new { g.Key, Best = g.Max(s => s.Reps) }).ToListAsync();
+        var questBests = await db.QuestInstances
+            .Where(q => q.CharacterId == character.Id && q.ExerciseId != null && q.DoneValue != null && q.Date >= since)
+            .GroupBy(q => q.ExerciseId!.Value).Select(g => new { g.Key, Best = g.Max(q => q.DoneValue!.Value) }).ToListAsync();
+        var bests = setBests.Concat(questBests).GroupBy(x => x.Key).ToDictionary(g => g.Key, g => g.Max(x => x.Best));
+
         return new QuestContext(today, profile.TrainingDaysPerWeek, profile.SessionMinutes, profile.Equipment, profile.ExcludedBodyParts,
-            tiers, baseline, last, profile.BaselineSteps, protein, character.CurrentHp);
+            tiers, baseline, last, profile.BaselineSteps, protein, character.CurrentHp, bests);
     }
 
     /// <summary>Report a quest (fully or partly). Rewards are paid only for the part not already paid.</summary>
@@ -173,7 +184,41 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
         }
 
         var result = await GrantAsync(character, xp, gems, "quest", quest.Id.ToString());
-        return result with { QuestStatus = quest.Status.ToString() };
+        result = result with { QuestStatus = quest.Status.ToString() };
+        if (quest.BossKind is not null && quest.Status == QuestStatus.Completed)
+            result = await BossRewardAsync(character, quest, result);
+        return result;
+    }
+
+    // Twelve fantasy moons for the monthly boss titles.
+    public static readonly string[] Moons =
+    [
+        "Frostfang Moon", "Ashen Moon", "Thawing Moon", "Bloom Moon", "Ember Moon", "Sunfire Moon",
+        "Storm Moon", "Dragon Moon", "Harvest Moon", "Shadow Moon", "Iron Moon", "Winter Crown",
+    ];
+
+    /// <summary>Weekly boss: a free rest pass (the rare drop). Monthly boss: all four beaten → that month's title.</summary>
+    async Task<RewardResult> BossRewardAsync(Character character, QuestInstance quest, RewardResult result)
+    {
+        if (quest.BossKind == "weekly")
+        {
+            var pass = await db.ShopItems.FirstOrDefaultAsync(i => i.Code == "rest_pass");
+            if (pass is null) return result;
+            db.Purchases.Add(new Purchase { UserId = character.UserId, ShopItemId = pass.Id, Price = 0, PurchasedAt = clock.GetUtcNow().UtcDateTime });
+            await db.SaveChangesAsync();
+            return result with { Bonus = "Vật phẩm hiếm: 1 Vé nghỉ" };
+        }
+
+        var pending = await db.QuestInstances.AnyAsync(q => q.CharacterId == character.Id && q.Date == quest.Date
+                                                            && q.BossKind == "monthly" && q.Status != QuestStatus.Completed);
+        if (pending) return result;
+        var code = $"moon_{quest.Date.Month:00}";
+        var title = await db.Titles.FirstOrDefaultAsync(t => t.Code == code);
+        if (title is null || await db.CharacterTitles.AnyAsync(t => t.CharacterId == character.Id && t.TitleId == title.Id))
+            return result with { Bonus = "Đã hạ Rồng Than Hồng tháng này" };
+        db.CharacterTitles.Add(new CharacterTitle { CharacterId = character.Id, TitleId = title.Id });
+        await db.SaveChangesAsync();
+        return result with { NewTitles = [.. result.NewTitles, title.Name], Bonus = "Hạ cả bốn Rồng Than Hồng" };
     }
 
     /// <summary>Adds XP and Gems, levels up, unlocks titles and evolution stages.</summary>

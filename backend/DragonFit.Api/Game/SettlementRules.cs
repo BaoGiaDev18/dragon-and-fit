@@ -13,7 +13,8 @@ public record SettlementInput(
     decimal? SleepHours,
     int PreviousPerfectStreak,
     int HpBefore,
-    int MaxHp = 100);
+    int MaxHp = 100,
+    bool BossSkipped = false);   // a boss quest was offered and not even tried
 
 public record HpLine(int Amount, string Reason, string Detail);
 
@@ -25,6 +26,7 @@ public static class SettlementRules
     public const int NoFoodLogDamage = 10;
     public const int QuestDamage = 5;
     public const int MaxFoodDamage = 25;
+    public const int BossSkipDamage = 10;
     public const decimal DailyCapShare = 0.30m;
 
     public static bool KcalOnTarget(int target, int actual) => Math.Abs(actual - target) <= target * 0.10m;
@@ -69,6 +71,8 @@ public static class SettlementRules
                         ratio == 0 ? $"Bỏ: {q.Title}" : $"Làm thiếu ({q.Done}/{q.Target}): {q.Title}"));
             }
         }
+
+        if (i.BossSkipped) lines.Add(new HpLine(-BossSkipDamage, "BossSkipped", "Bỏ không đánh boss"));
 
         var raw = -lines.Sum(l => l.Amount);
         var cap = (int)Math.Floor(i.MaxHp * DailyCapShare);
