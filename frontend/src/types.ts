@@ -8,6 +8,8 @@ export type Question = {
   unit: string | null
   min: number | null
   max: number | null
+  pattern: string | null
+  patternMessage: string | null
   isRequired: boolean
   isSensitive: boolean
   options: Option[]

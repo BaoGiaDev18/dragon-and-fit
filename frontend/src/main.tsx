@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource/vt323/400.css'
+import '@fontsource/pixelify-sans/500.css'
 import '@fontsource/be-vietnam-pro/400.css'
 import '@fontsource/be-vietnam-pro/500.css'
 import './index.css'

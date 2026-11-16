@@ -426,6 +426,12 @@ namespace DragonFit.Api.Data.Migrations
                     b.Property<decimal?>("MinValue")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("Pattern")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PatternMessage")
+                        .HasColumnType("text");
+
                     b.Property<string>("Prompt")
                         .IsRequired()
                         .HasColumnType("text");

@@ -153,6 +153,9 @@ public class OnboardingQuestion
     public string? Unit { get; set; }
     public decimal? MinValue { get; set; }
     public decimal? MaxValue { get; set; }
+    /// <summary>Optional regular expression the text answer must match (e.g. character names: A–Z only).</summary>
+    public string? Pattern { get; set; }
+    public string? PatternMessage { get; set; }
     public bool IsRequired { get; set; }
     public bool IsSensitive { get; set; }
     public bool IsActive { get; set; } = true;

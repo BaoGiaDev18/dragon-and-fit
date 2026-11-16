@@ -21,7 +21,7 @@ export function StatusScreen({ status, onGoQuests }: { status: Status; onGoQuest
               {c.avatar && <AvatarSprite sheetUrl={c.avatar.spriteSheetUrl} stage={c.evolutionStage} scale={2} />}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="pixel" style={{ fontSize: 30, lineHeight: 1 }}>{c.name}</div>
+              <div className="char-name" style={{ fontSize: 26, lineHeight: 1.1 }}>{c.name}</div>
               <div className="pixel accent" style={{ fontSize: 17 }}>{c.title}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <div style={{ flex: 1 }}><Bar kind="xp" value={c.xpIntoLevel} max={c.xpForNext} /></div>

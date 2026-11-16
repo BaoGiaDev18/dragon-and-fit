@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using DragonFit.Api.Domain;
 
@@ -35,6 +36,9 @@ public static class AnswerValidator
                 var s = v.GetString()!.Trim();
                 if (q.MinValue is { } min && s.Length < min) return Result.Fail($"Tối thiểu {min} ký tự.");
                 if (q.MaxValue is { } max && s.Length > max) return Result.Fail($"Tối đa {max} ký tự.");
+                if (q.Pattern is { } pattern
+                    && !Regex.IsMatch(s, pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)))
+                    return Result.Fail(q.PatternMessage ?? "Định dạng không hợp lệ.");
                 return Result.Ok(JsonValue.Create(s));
             }
             case "number":

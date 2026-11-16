@@ -38,7 +38,7 @@ public class OnboardingService(AppDbContext db, TimeProvider clock)
                 s.Code, s.Title, s.Narration, s.IsSkippable,
                 questions = s.Questions.Select(q => new
                 {
-                    q.Code, q.Prompt, q.HelpText, q.InputType, q.Unit, min = q.MinValue, max = q.MaxValue, q.IsRequired, q.IsSensitive,
+                    q.Code, q.Prompt, q.HelpText, q.InputType, q.Unit, min = q.MinValue, max = q.MaxValue, q.Pattern, q.PatternMessage, q.IsRequired, q.IsSensitive,
                     options = q.Options.Select(o => new { o.Label, o.Value, o.IsExclusive }),
                 }),
             }),

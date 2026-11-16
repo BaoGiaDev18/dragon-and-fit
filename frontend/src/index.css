@@ -19,6 +19,8 @@
 
   --font-pixel: 'VT323', ui-monospace, monospace;
   --font-body: 'Be Vietnam Pro', system-ui, sans-serif;
+  /* Character names only: Pixelify Sans has no Vietnamese diacritics, so names are A–Z (server-enforced). */
+  --font-name: 'Pixelify Sans', var(--font-pixel);
 
   color-scheme: dark;
   font-family: var(--font-body);
@@ -97,6 +99,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ------------------------------------------------------------ Type */
 .pixel { font-family: var(--font-pixel); letter-spacing: 0.5px; }
+.char-name { font-family: var(--font-name); font-weight: 500; letter-spacing: 0.5px; }
 .dim { color: var(--text-dim); }
 .accent { color: var(--accent); }
 h1, h2, h3 { font-family: var(--font-pixel); font-weight: 400; margin: 0; letter-spacing: 0.5px; }

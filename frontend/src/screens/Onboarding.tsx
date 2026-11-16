@@ -159,15 +159,28 @@ function QuestionField({ q, value, error, avatars, onChange }: {
       </label>
       <Input q={q} id={id} value={value} avatars={avatars} onChange={onChange} />
       {q.helpText && <span className="help">{q.helpText}</span>}
-      {error && <span className="err" role="alert">{error}</span>}
+      {(error ?? patternError(q, value)) && <span className="err" role="alert">{error ?? patternError(q, value)}</span>}
     </div>
   )
+}
+
+/** Same rule the server enforces, shown while typing so the player isn't surprised on Continue. */
+function patternError(q: Question, value: unknown): string | null {
+  if (!q.pattern || typeof value !== 'string' || value.trim() === '') return null
+  try {
+    return new RegExp(q.pattern).test(value.trim()) ? null : q.patternMessage
+  } catch {
+    return null
+  }
 }
 
 function Input({ q, id, value, avatars, onChange }: { q: Question; id: string; value: unknown; avatars: AvatarInfo[]; onChange: (v: unknown) => void }) {
   switch (q.inputType) {
     case 'text':
-      return <input id={id} className="input" value={(value as string) ?? ''} maxLength={q.max ?? undefined} onChange={e => onChange(e.target.value)} />
+      return (
+        <input id={id} className={`input ${q.pattern ? 'char-name' : ''}`} value={(value as string) ?? ''} maxLength={q.max ?? undefined}
+          spellCheck={false} autoComplete="off" onChange={e => onChange(e.target.value)} />
+      )
     case 'number':
       return (
         <div className="input-unit">
@@ -312,7 +325,7 @@ function ReviewCard({ state, answers, busy, error, onConfirm, onBack }: {
           <div style={{ border: '1px solid var(--border-bright)', background: 'var(--bg-inset)', padding: 6 }}>
             {avatar && <AvatarSprite sheetUrl={avatar.spriteSheetUrl} scale={3} />}
           </div>
-          <div className="pixel" style={{ fontSize: 30, marginTop: 8 }}>{String(answers.char_name ?? '')}</div>
+          <div className="char-name" style={{ fontSize: 26, marginTop: 8 }}>{String(answers.char_name ?? '')}</div>
           <div className="accent pixel" style={{ fontSize: 18 }}>Wandering Squire · Lv 1</div>
         </div>
         <div>

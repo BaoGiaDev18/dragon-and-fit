@@ -16,6 +16,34 @@ public static class SeedData
         await SeedExercises(db);
         await SeedQuestTemplates(db);
         await SeedOnboarding(db);
+        await PatchQuestions(db);
+    }
+
+    // Character names are shown in the Pixelify Sans pixel font, which has no Vietnamese
+    // diacritics, so names use unaccented Latin letters, digits, single spaces and - _ '.
+    public const string NamePattern = @"^[A-Za-z](?:[A-Za-z0-9_'-]| (?! ))*$";
+    const string NameMessage = "Tên chỉ dùng chữ cái không dấu (A–Z), số, khoảng trắng đơn và - _ '. Bắt đầu bằng chữ cái.";
+    const string NameHelp = "2–16 ký tự không dấu, ví dụ: Bao, Iron Bao, Bao_99. Sẽ hiện trên bảng xếp hạng.";
+
+    static OnboardingQuestion NameQuestion()
+    {
+        var q = Q("char_name", "Chiến binh, ngươi tên là gì?", "text", req: true, min: 2, max: 16, help: NameHelp);
+        q.Pattern = NamePattern;
+        q.PatternMessage = NameMessage;
+        return q;
+    }
+
+    /// <summary>Applies rule changes to questions in databases that were seeded earlier.</summary>
+    static async Task PatchQuestions(AppDbContext db)
+    {
+        var name = await db.OnboardingQuestions.FirstOrDefaultAsync(q => q.Code == "char_name");
+        if (name is not null && name.Pattern is null)
+        {
+            name.Pattern = NamePattern;
+            name.PatternMessage = NameMessage;
+            name.HelpText = NameHelp;
+            await db.SaveChangesAsync();
+        }
     }
 
     // Level titles (B2). Achievement titles are added when achievements arrive in Phase 2.
@@ -131,7 +159,7 @@ public static class SeedData
         {
             Step("awakening", 1, "Thức tỉnh",
                 "Ngọn lửa trong lò rèn bập bùng. Một chiến binh vừa mở mắt giữa doanh trại cũ... Hãy cho ta biết ngươi là ai.", false,
-                Q("char_name", "Chiến binh, ngươi tên là gì?", "text", req: true, min: 2, max: 16, help: "2–16 ký tự, sẽ hiện trên bảng xếp hạng."),
+                NameQuestion(),
                 Q("sex", "Giới tính", "single_choice", req: true, opts: [("Nam", "male"), ("Nữ", "female")], help: "Dùng để tính mức năng lượng cơ thể cần mỗi ngày.")),
 
             Step("form", 2, "Chọn hình hài",

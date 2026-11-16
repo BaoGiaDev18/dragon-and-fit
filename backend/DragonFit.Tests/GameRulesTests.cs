@@ -169,3 +169,30 @@ public class AnswerValidatorTests
         Assert.NotNull(AnswerValidator.Validate(new OnboardingQuestion { InputType = "text", IsRequired = true }, J("\"  \"")).Error);
     }
 }
+
+public class CharacterNameTests
+{
+    static OnboardingQuestion NameQ() => new()
+    {
+        InputType = "text", IsRequired = true, MinValue = 2, MaxValue = 16,
+        Pattern = DragonFit.Api.Data.SeedData.NamePattern, PatternMessage = "bad",
+    };
+
+    [Theory]
+    [InlineData("Bao")]
+    [InlineData("Iron Bao")]
+    [InlineData("Bao_99")]
+    [InlineData("O'Neil-Fit")]
+    public void Unaccented_names_pass(string name) =>
+        Assert.Null(AnswerValidator.Validate(NameQ(), JsonDocument.Parse(JsonSerializer.Serialize(name)).RootElement).Error);
+
+    [Theory]
+    [InlineData("Bảo")]
+    [InlineData("Đỗ")]
+    [InlineData("9Lives")]
+    [InlineData("Iron  Bao")]
+    [InlineData("Bao!")]
+    [InlineData("Bao😀")]
+    public void Accents_symbols_and_double_spaces_fail(string name) =>
+        Assert.Equal("bad", AnswerValidator.Validate(NameQ(), JsonDocument.Parse(JsonSerializer.Serialize(name)).RootElement).Error);
+}
