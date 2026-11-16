@@ -30,6 +30,7 @@ public class Character
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? DiedAt { get; set; }
     public DateTime? PurgeAt { get; set; }
+    public DateOnly? RestModeFrom { get; set; }
     public DateOnly? RestModeUntil { get; set; }
 }
 
@@ -300,4 +301,70 @@ public class ShopItem
     public string? Size { get; set; }               // small / medium / large
     public int Price { get; set; }
     public string? OwnerUserId { get; set; }
+}
+
+// ---------------------------------------------------------------- Food (Phase 2)
+
+public class Food
+{
+    public int Id { get; set; }
+    public string Code { get; set; } = "";
+    public string NameVi { get; set; } = "";
+    public string Serving { get; set; } = "";   // human description, e.g. "1 tô"
+    public decimal ServingG { get; set; }
+    public decimal Kcal { get; set; }            // per serving, estimate
+    public decimal ProteinG { get; set; }
+    public decimal CarbG { get; set; }
+    public decimal FatG { get; set; }
+    public int PriceVnd { get; set; }
+    public List<string> Tags { get; set; } = [];
+    public bool IsActive { get; set; } = true;
+}
+
+public class MealLog
+{
+    public long Id { get; set; }
+    public string UserId { get; set; } = "";
+    public DateOnly Date { get; set; }           // player's local day
+    public string Slot { get; set; } = "lunch";  // breakfast / lunch / dinner / snack
+    public int FoodId { get; set; }
+    public Food? Food { get; set; }
+    public decimal Servings { get; set; } = 1;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+// ---------------------------------------------------------------- HP (B10)
+
+public class DailySettlement
+{
+    public long Id { get; set; }
+    public Guid CharacterId { get; set; }
+    public DateOnly Date { get; set; }
+    public int TargetKcal { get; set; }
+    public int ActualKcal { get; set; }
+    public int BurnedKcal { get; set; }
+    public int ProteinG { get; set; }
+    public int ProteinTargetG { get; set; }
+    public int MealsLogged { get; set; }
+    public decimal QuestCompletion { get; set; }
+    public int Damage { get; set; }
+    public int Heal { get; set; }
+    public bool IsPerfect { get; set; }
+    public int PerfectStreak { get; set; }
+    public bool IsRestMode { get; set; }
+    public int HpBefore { get; set; }
+    public int HpAfter { get; set; }
+    public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? SeenAt { get; set; }
+}
+
+public class HpEvent
+{
+    public long Id { get; set; }
+    public Guid CharacterId { get; set; }
+    public DateOnly Date { get; set; }
+    public int Amount { get; set; }               // negative = damage
+    public string Reason { get; set; } = "";      // Overeat / Undereat / NoFoodLog / QuestMissed / QuestPartial / DailyCap / PerfectDay / Sleep
+    public string? Detail { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

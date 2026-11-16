@@ -9,6 +9,7 @@ public interface IProofStorage
 {
     Task<string> SaveAsync(string userId, Guid questId, Stream content, string contentType);
     Task<(Stream Content, string ContentType)?> OpenAsync(string key);
+    Task DeleteAsync(string key);
 }
 
 public class LocalProofStorage(IWebHostEnvironment env) : IProofStorage
@@ -46,6 +47,13 @@ public class LocalProofStorage(IWebHostEnvironment env) : IProofStorage
             await file.WriteAsync(buffer.AsMemory(0, read));
         }
         return key;
+    }
+
+    public Task DeleteAsync(string key)
+    {
+        var path = Path.GetFullPath(Path.Combine(Root, key));
+        if (path.StartsWith(Path.GetFullPath(Root) + Path.DirectorySeparatorChar) && File.Exists(path)) File.Delete(path);
+        return Task.CompletedTask;
     }
 
     public Task<(Stream Content, string ContentType)?> OpenAsync(string key)

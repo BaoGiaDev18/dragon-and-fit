@@ -17,6 +17,7 @@ public static class SeedData
         await SeedQuestTemplates(db);
         await SeedOnboarding(db);
         await PatchQuestions(db);
+        await SeedFoods(db);
     }
 
     // Character names are shown in the Pixelify Sans pixel font, which has no Vietnamese
@@ -243,4 +244,70 @@ public static class SeedData
             Code = code, Prompt = prompt, InputType = type, IsRequired = req, IsSensitive = sensitive,
             Options = (opts ?? []).Select((o, i) => new QuestionOption { Label = o.Label, Value = o.Value, IsExclusive = o.Exclusive, SortOrder = i + 1 }).ToList(),
         };
+
+    // Approximate values per serving for common Vietnamese dishes. They are estimates for game
+    // scoring, not lab values; the UI says so. New foods are added here or straight in the database.
+    static async Task SeedFoods(AppDbContext db)
+    {
+        var list = new List<Food>
+        {
+            F("com_trang", "Cơm trắng", "1 chén", 150m, 195m, 4m, 43m, 0.4m, 5000, ["carb", "home", "canteen"]),
+            F("com_tam_suon", "Cơm tấm sườn", "1 đĩa", 400m, 600m, 30m, 70m, 20m, 45000, ["meal", "street"]),
+            F("com_ga_xoi_mo", "Cơm gà xối mỡ", "1 đĩa", 420m, 750m, 32m, 80m, 32m, 45000, ["meal", "street"]),
+            F("com_phan_can_tin", "Cơm phần căng tin (cơm + 1 món mặn + rau)", "1 phần", 450m, 650m, 28m, 85m, 20m, 30000, ["meal", "canteen"]),
+            F("com_chien_duong_chau", "Cơm chiên Dương Châu", "1 đĩa", 350m, 600m, 18m, 80m, 22m, 40000, ["meal", "street"]),
+            F("pho_bo", "Phở bò", "1 tô", 550m, 450m, 25m, 55m, 12m, 50000, ["meal", "street", "noodle"]),
+            F("pho_ga", "Phở gà", "1 tô", 550m, 400m, 25m, 55m, 8m, 45000, ["meal", "street", "noodle"]),
+            F("bun_bo_hue", "Bún bò Huế", "1 tô", 600m, 500m, 25m, 60m, 15m, 50000, ["meal", "street", "noodle"]),
+            F("bun_cha", "Bún chả", "1 phần", 450m, 550m, 25m, 60m, 22m, 45000, ["meal", "street", "noodle"]),
+            F("bun_rieu", "Bún riêu", "1 tô", 550m, 420m, 18m, 55m, 12m, 40000, ["meal", "street", "noodle", "seafood"]),
+            F("hu_tieu", "Hủ tiếu Nam Vang", "1 tô", 550m, 450m, 22m, 60m, 12m, 45000, ["meal", "street", "noodle"]),
+            F("mi_quang", "Mì Quảng", "1 tô", 500m, 500m, 24m, 60m, 16m, 45000, ["meal", "street", "noodle"]),
+            F("chao_ga", "Cháo gà", "1 tô", 450m, 300m, 18m, 40m, 6m, 30000, ["meal", "street"]),
+            F("banh_mi_thit", "Bánh mì thịt", "1 ổ", 220m, 450m, 18m, 55m, 17m, 25000, ["meal", "street", "breakfast"]),
+            F("banh_mi_trung", "Bánh mì trứng", "1 ổ", 200m, 380m, 15m, 50m, 13m, 20000, ["meal", "street", "breakfast"]),
+            F("xoi_ga", "Xôi gà", "1 gói", 300m, 550m, 22m, 80m, 15m, 30000, ["meal", "street", "breakfast"]),
+            F("banh_bao", "Bánh bao nhân thịt trứng", "1 cái", 170m, 320m, 12m, 45m, 10m, 20000, ["street", "breakfast"]),
+            F("goi_cuon", "Gỏi cuốn", "2 cuốn", 200m, 180m, 10m, 28m, 3m, 20000, ["street", "light", "seafood"]),
+            F("cha_gio", "Chả giò", "2 cái", 100m, 250m, 8m, 18m, 16m, 20000, ["street", "fried"]),
+            F("mi_goi", "Mì gói", "1 gói", 75m, 350m, 8m, 48m, 14m, 5000, ["carb", "home"]),
+            F("uc_ga_luoc", "Ức gà luộc", "100 g", 100m, 165m, 31m, 0m, 3.6m, 20000, ["protein", "home"]),
+            F("uc_ga_ap_chao", "Ức gà áp chảo", "150 g", 150m, 260m, 45m, 0m, 8m, 30000, ["protein", "home"]),
+            F("trung_luoc", "Trứng gà luộc", "1 quả", 50m, 75m, 6.5m, 0.6m, 5m, 4000, ["protein", "home", "breakfast"]),
+            F("trung_op_la", "Trứng ốp la", "1 quả", 50m, 95m, 6.5m, 0.5m, 7m, 4000, ["protein", "home", "breakfast"]),
+            F("dau_hu_luoc", "Đậu hũ luộc", "100 g", 100m, 76m, 8m, 2m, 4.8m, 5000, ["protein", "home", "vegetarian"]),
+            F("dau_hu_sot_ca", "Đậu hũ sốt cà", "1 phần", 200m, 180m, 10m, 8m, 12m, 15000, ["protein", "home", "canteen", "vegetarian"]),
+            F("thit_nac_luoc", "Thịt heo nạc luộc", "100 g", 100m, 145m, 21m, 0m, 6m, 15000, ["protein", "home"]),
+            F("thit_kho_trung", "Thịt kho trứng", "1 phần", 200m, 450m, 25m, 8m, 35m, 35000, ["protein", "home", "canteen"]),
+            F("bo_xao_rau", "Thịt bò xào rau", "1 phần", 250m, 300m, 25m, 10m, 18m, 40000, ["protein", "home", "canteen"]),
+            F("ca_kho", "Cá kho tộ", "1 phần", 200m, 280m, 25m, 8m, 16m, 35000, ["protein", "home", "canteen", "seafood"]),
+            F("ca_basa_ap_chao", "Cá basa áp chảo", "150 g", 150m, 220m, 24m, 0m, 13m, 30000, ["protein", "home", "seafood"]),
+            F("tom_luoc", "Tôm luộc", "100 g", 100m, 100m, 21m, 0m, 1.5m, 40000, ["protein", "home", "seafood"]),
+            F("canh_rau", "Canh rau", "1 chén", 250m, 40m, 2m, 6m, 1m, 5000, ["veg", "home", "canteen"]),
+            F("rau_luoc", "Rau luộc", "1 đĩa", 200m, 50m, 3m, 8m, 0.5m, 8000, ["veg", "home", "canteen"]),
+            F("rau_muong_xao", "Rau muống xào tỏi", "1 đĩa", 200m, 120m, 4m, 8m, 8m, 15000, ["veg", "home", "canteen"]),
+            F("sua_chua_khong_duong", "Sữa chua không đường", "1 hộp 100 g", 100m, 60m, 3.5m, 5m, 3m, 7000, ["dairy", "snack"]),
+            F("sua_chua_hy_lap", "Sữa chua Hy Lạp", "100 g", 100m, 97m, 9m, 4m, 5m, 20000, ["dairy", "snack", "protein"]),
+            F("sua_tuoi_khong_duong", "Sữa tươi không đường", "1 hộp 180 ml", 180m, 115m, 6m, 9m, 6m, 8000, ["dairy", "drink"]),
+            F("sua_dau_nanh", "Sữa đậu nành", "1 ly 250 ml", 250m, 130m, 8m, 12m, 5m, 8000, ["drink", "vegetarian"]),
+            F("whey", "Whey protein", "1 muỗng 30 g", 30m, 120m, 24m, 3m, 1.5m, 25000, ["protein", "drink", "supplement"]),
+            F("chuoi", "Chuối", "1 quả", 120m, 105m, 1.3m, 27m, 0.4m, 4000, ["fruit", "snack"]),
+            F("tao", "Táo", "1 quả", 180m, 95m, 0.5m, 25m, 0.3m, 10000, ["fruit", "snack"]),
+            F("khoai_lang", "Khoai lang luộc", "1 củ 150 g", 150m, 130m, 2.4m, 30m, 0.2m, 8000, ["carb", "home", "snack"]),
+            F("yen_mach", "Yến mạch", "40 g khô", 40m, 150m, 5m, 27m, 2.5m, 6000, ["carb", "breakfast"]),
+            F("dau_phong", "Đậu phộng rang", "30 g", 30m, 170m, 7.5m, 5m, 14m, 5000, ["snack", "nuts"]),
+            F("hat_dieu", "Hạt điều", "30 g", 30m, 165m, 5m, 9m, 13m, 15000, ["snack", "nuts"]),
+            F("tra_sua", "Trà sữa trân châu", "1 ly M", 500m, 400m, 4m, 65m, 14m, 35000, ["drink", "sugary"]),
+            F("ca_phe_sua_da", "Cà phê sữa đá", "1 ly", 200m, 150m, 3m, 25m, 4m, 20000, ["drink", "sugary"]),
+            F("ca_phe_den", "Cà phê đen không đường", "1 ly", 150m, 5m, 0.3m, 0m, 0m, 15000, ["drink"]),
+            F("nuoc_ngot", "Nước ngọt", "1 lon 330 ml", 330m, 140m, 0m, 35m, 0m, 12000, ["drink", "sugary"]),
+            F("bia", "Bia", "1 lon 330 ml", 330m, 150m, 1.5m, 13m, 0m, 15000, ["drink", "alcohol"]),
+        };
+        var existing = await db.Foods.Select(f => f.Code).ToListAsync();
+        db.Foods.AddRange(list.Where(f => !existing.Contains(f.Code)));
+        await db.SaveChangesAsync();
+
+        static Food F(string code, string name, string serving, decimal g, decimal kcal, decimal p, decimal c, decimal f, int price, List<string> tags) =>
+            new() { Code = code, NameVi = name, Serving = serving, ServingG = g, Kcal = kcal, ProteinG = p, CarbG = c, FatG = f, PriceVnd = price, Tags = tags };
+    }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 export function Window({ title, children, className = '', style }: { title?: string; children: ReactNode; className?: string; style?: CSSProperties }) {
   return (
@@ -86,7 +86,10 @@ export function useKey(key: string, handler: () => void, enabled = true) {
   }, [key, handler, enabled])
 }
 
+/** Stable show/clear functions, so screens can list them as effect dependencies safely. */
 export function useToast() {
   const [msg, setMsg] = useState<ToastMsg>(null)
-  return { msg, show: (text: string, error = false) => setMsg({ text, error }), clear: () => setMsg(null) }
+  const show = useCallback((text: string, error = false) => setMsg({ text, error }), [])
+  const clear = useCallback(() => setMsg(null), [])
+  return { msg, show, clear }
 }

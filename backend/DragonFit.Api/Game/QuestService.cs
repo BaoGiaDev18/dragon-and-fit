@@ -14,7 +14,7 @@ public record RewardResult(
     int XpGained, int GemsGained, int LevelBefore, int LevelAfter, int StreakDays,
     IReadOnlyList<string> NewTitles, int? EvolvedToStage, string QuestStatus);
 
-public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage storage, IConfiguration config)
+public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage storage, IConfiguration config, SettlementService settlement)
 {
     public const int RerollCost = 20;
 
@@ -23,8 +23,11 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
         var character = await db.Characters.FirstOrDefaultAsync(c => c.UserId == userId && c.Status == CharacterStatus.Alive)
                         ?? throw new GameException("Chưa có nhân vật.", 404);
         var profile = await db.PlayerProfiles.FindAsync(userId) ?? throw new GameException("Chưa có hồ sơ.", 404);
-        var local = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById(profile.TimeZoneId)).DateTime;
-        return (character, profile, DateOnly.FromDateTime(local), local);
+        // Close any finished days first, so HP and the board are always up to date.
+        await settlement.CatchUpAsync(character, profile);
+        if (character.Status != CharacterStatus.Alive) throw new GameException("Nhân vật đã tử trận.", 410);
+        var day = DayClock.For(clock, profile.TimeZoneId);
+        return (character, profile, day.Today, day.LocalNow);
     }
 
     /// <summary>Today's quest board. Quests appear at the player's chosen time (B3) and are generated once per day.</summary>
@@ -40,7 +43,7 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
 
         await EnsureGeneratedAsync(character, profile, today);
         var quests = await db.QuestInstances.Where(q => q.CharacterId == character.Id && q.Date == today)
-            .Include(q => q.Exercise).OrderBy(q => q.Slot).AsNoTracking().ToListAsync();
+            .Include(q => q.Exercise).Include(q => q.Template).OrderBy(q => q.Slot).AsNoTracking().ToListAsync();
         return new
         {
             date = today, locked = false, unlockAt = profile.QuestTime.ToString("HH:mm"),
@@ -59,6 +62,8 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
         kind = q.Template?.Kind,
         exercise = q.Exercise is null ? null : new { q.Exercise.Code, q.Exercise.NameVi, q.Exercise.Group, q.Exercise.Tier, q.Exercise.FormTips },
         canReroll = q.Status == QuestStatus.Pending && q.ExerciseId != null,
+        // The protein quest fills itself from the meal log (Phase 2), so it has no report button.
+        canReport = q.Template?.Kind != "protein" && q.Status != QuestStatus.Completed,
     };
 
     async Task EnsureGeneratedAsync(Character character, PlayerProfile profile, DateOnly today)
@@ -114,11 +119,14 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
     /// <summary>Report a quest (fully or partly). Rewards are paid only for the part not already paid.</summary>
     public async Task<RewardResult> CompleteAsync(string userId, Guid questId, int doneValue, Stream? photo, string? contentType)
     {
-        var (character, _, today, _) = await LoadAsync(userId);
+        var (character, profile, _, _) = await LoadAsync(userId);
         var quest = await db.QuestInstances.Include(q => q.Template)
                         .FirstOrDefaultAsync(q => q.Id == questId && q.UserId == userId)
                     ?? throw new GameException("Không tìm thấy nhiệm vụ.", 404);
-        if (quest.Date != today) throw new GameException("Chỉ báo cáo được nhiệm vụ của hôm nay.");
+        if (!DayClock.For(clock, profile.TimeZoneId).IsOpen(quest.Date))
+            throw new GameException("Ngày này đã chốt sổ lúc 4:00, không báo cáo thêm được.");
+        if (quest.Template?.Kind == "protein") throw new GameException("Nhiệm vụ protein tự hoàn thành khi ngươi ghi bữa ăn.");
+        var today = quest.Date;
         if (quest.Status == QuestStatus.Completed) throw new GameException("Nhiệm vụ đã hoàn thành.");
         if (doneValue < 0 || doneValue > quest.TargetValue * 5) throw new GameException("Số liệu không hợp lệ.");
         if (doneValue <= (quest.DoneValue ?? 0)) throw new GameException("Kết quả mới phải cao hơn lần báo trước.");
@@ -191,6 +199,38 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
 
         await db.SaveChangesAsync();
         return new RewardResult(xp, gems, before, character.Level, character.StreakDays, newTitles, evolved, "");
+    }
+
+    /// <summary>Called after a meal is logged or removed: the protein quest follows the meal log.</summary>
+    public async Task<RewardResult?> SyncProteinAsync(Character character, DateOnly date, int proteinG)
+    {
+        var quest = await db.QuestInstances.Include(q => q.Template)
+            .FirstOrDefaultAsync(q => q.CharacterId == character.Id && q.Date == date && q.Template!.Kind == "protein");
+        if (quest is null || quest.Status == QuestStatus.Completed) return null;
+        quest.DoneValue = proteinG;
+        if (proteinG < quest.TargetValue)
+        {
+            quest.Status = proteinG > 0 ? QuestStatus.Partial : QuestStatus.Pending;
+            await db.SaveChangesAsync();
+            return null;
+        }
+        quest.Status = QuestStatus.Completed;
+        quest.CompletedAt = clock.GetUtcNow().UtcDateTime;
+        var xp = (int)Math.Round(quest.Xp * Progression.StreakMultiplier(character.StreakDays)) - quest.AwardedXp;
+        var gems = quest.Gems - quest.AwardedGems;
+        quest.AwardedXp += xp;
+        quest.AwardedGems += gems;
+        await db.SaveChangesAsync();
+
+        var allDone = !await db.QuestInstances.AnyAsync(q =>
+            q.CharacterId == character.Id && q.Date == date && q.IsRequired && q.Status != QuestStatus.Completed);
+        if (allDone && character.LastStreakDate != date)
+        {
+            character.StreakDays = character.LastStreakDate == date.AddDays(-1) ? character.StreakDays + 1 : 1;
+            character.LastStreakDate = date;
+        }
+        var result = await GrantAsync(character, xp, gems, "quest", quest.Id.ToString());
+        return result with { QuestStatus = quest.Status.ToString() };
     }
 
     /// <summary>Swap a pending exercise quest for another variation of the same group (costs 20 Gems).</summary>

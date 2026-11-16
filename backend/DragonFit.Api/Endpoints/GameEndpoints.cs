@@ -11,6 +11,7 @@ namespace DragonFit.Api.Endpoints;
 
 public record StepRequest(Dictionary<string, JsonElement>? Answers, bool Skip = false);
 public record CompleteRequest(string? TimeZone);
+public record RestModeRequest(int Days);
 
 public static class GameEndpoints
 {
@@ -21,13 +22,34 @@ public static class GameEndpoints
         var api = app.MapGroup("/api").RequireAuthorization();
 
         // Where should the client go after login: character creation or the main menu?
-        api.MapGet("/me", async (ClaimsPrincipal user, AppDbContext db) =>
+        api.MapGet("/me", async (ClaimsPrincipal user, CharacterService svc) => Results.Ok(await svc.MeAsync(Uid(user))));
+
+        var character = api.MapGroup("/character");
+        character.MapPost("/rebirth", async (RebirthRequest req, ClaimsPrincipal user, CharacterService svc) =>
+            Results.Ok(new { characterId = await svc.RebirthAsync(Uid(user), req) }));
+        character.MapPost("/rest-mode", async (RestModeRequest req, ClaimsPrincipal user, CharacterService svc) =>
+            Results.Ok(await svc.SetRestModeAsync(Uid(user), req.Days)));
+        character.MapPost("/report/seen", async (ClaimsPrincipal user, QuestService quests, CharacterService svc) =>
         {
-            var id = Uid(user);
-            var u = await db.Users.FindAsync(id);
-            var progress = await db.OnboardingProgress.FindAsync(id);
-            var hasCharacter = await db.Characters.AnyAsync(c => c.UserId == id && c.Status == CharacterStatus.Alive);
-            return Results.Ok(new { email = u?.Email, onboarding = (progress?.Status ?? OnboardingStatus.NotStarted).ToString(), hasCharacter });
+            var (c, _, _, _) = await quests.LoadAsync(Uid(user));
+            await svc.MarkReportsSeenAsync(c);
+            return Results.NoContent();
+        });
+
+        // Food and the daily weigh-in (Phase 2)
+        api.MapGet("/foods", async (string? q, MealService svc) => Results.Ok(await svc.SearchFoodsAsync(q)));
+        var meals = api.MapGroup("/meals");
+        meals.MapGet("/day", async (DateOnly? date, ClaimsPrincipal user, MealService svc) => Results.Ok(await svc.GetDayAsync(Uid(user), date)));
+        meals.MapPost("", async (AddMealRequest req, ClaimsPrincipal user, MealService svc) => Results.Ok(new { reward = await svc.AddAsync(Uid(user), req) }));
+        meals.MapDelete("/{id:long}", async (long id, ClaimsPrincipal user, MealService svc) =>
+        {
+            await svc.DeleteAsync(Uid(user), id);
+            return Results.NoContent();
+        });
+        api.MapPost("/body-metrics", async (BodyMetricRequest req, ClaimsPrincipal user, MealService svc) =>
+        {
+            await svc.SaveBodyMetricAsync(Uid(user), req);
+            return Results.NoContent();
         });
 
         var onboarding = api.MapGroup("/onboarding");
@@ -67,6 +89,29 @@ public static class GameEndpoints
             if (key is null) return Results.NotFound();
             var file = await storage.OpenAsync(key);
             return file is null ? Results.NotFound() : Results.Stream(file.Value.Content, file.Value.ContentType);
+        });
+    }
+
+    /// <summary>
+    /// Maintenance jobs, called on a schedule by cron-job.org (the free server may be asleep, so it
+    /// can't run timers itself). Protected by the X-Job-Key header; every job is safe to run twice.
+    /// </summary>
+    public static void MapJobEndpoints(this IEndpointRouteBuilder app)
+    {
+        var jobs = app.MapGroup("/jobs").AddEndpointFilter(async (ctx, next) =>
+        {
+            var key = ctx.HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Jobs:Key"];
+            var sent = ctx.HttpContext.Request.Headers["X-Job-Key"].ToString();
+            if (string.IsNullOrEmpty(key) || !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                    System.Text.Encoding.UTF8.GetBytes(key), System.Text.Encoding.UTF8.GetBytes(sent)))
+                return Results.Unauthorized();
+            return await next(ctx);
+        });
+        jobs.MapPost("/settle", async (CharacterService svc) => Results.Ok(new { characters = await svc.SettleAllAsync() }));
+        jobs.MapPost("/cleanup", async (CharacterService svc) =>
+        {
+            var (characters, photos) = await svc.CleanupAsync();
+            return Results.Ok(new { characters, photos });
         });
     }
 }

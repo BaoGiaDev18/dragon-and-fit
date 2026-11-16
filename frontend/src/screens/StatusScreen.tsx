@@ -6,7 +6,7 @@ const fmt = (n: number | null | undefined, digits = 1) =>
   n === null || n === undefined ? '—' : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: digits })
 
 /** Status page in the reference layout: portrait + attributes · skill wheel · real-life numbers (plan B4). */
-export function StatusScreen({ status, onGoQuests }: { status: Status; onGoQuests: () => void }) {
+export function StatusScreen({ status, onGoQuests, onDialog }: { status: Status; onGoQuests: () => void; onDialog: (d: 'metrics' | 'rest') => void }) {
   const c = status.character
   const remaining = status.today.required - status.today.done
   const bestDelta = Math.max(...status.stats.map(s => s.delta))
@@ -63,15 +63,30 @@ export function StatusScreen({ status, onGoQuests }: { status: Status; onGoQuest
           <h3>Sách Kỹ năng</h3>
           <div className="dim" style={{ fontSize: 13 }}>Bậc tiến hóa · Lv {c.nextEvolutionLevel || '—'} mở bậc {c.evolutionStage + 1}</div>
           <SkillWheel skills={status.skills} />
-          <button className="btn" onClick={onGoQuests}>Nhận nhiệm vụ</button>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn" onClick={onGoQuests}>Nhận nhiệm vụ</button>
+            <button className="btn ghost small" onClick={() => onDialog('metrics')}>
+              {status.today.measured ? 'Sửa số đo' : 'Ghi số đo'}
+            </button>
+            <button className="btn ghost small" onClick={() => onDialog('rest')}>Dưỡng thương</button>
+          </div>
+          {!status.today.measured && <p className="notice" style={{ justifyContent: 'center' }}>Chưa ghi số đo hôm nay</p>}
         </div>
 
         {/* Right: real numbers */}
         <div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-            <Bar kind="hp" label="HP" value={c.hp} max={c.maxHp} />
+            <div className={c.hpState !== 'normal' ? 'hp-danger' : undefined}>
+              <Bar kind="hp" label={c.hpState === 'dying' ? 'HP · Hấp hối' : c.hpState === 'critical' ? 'HP · Nguy kịch' : 'HP'} value={c.hp} max={c.maxHp} />
+            </div>
             <Bar kind="mp" label="MP" value={c.mp} max={c.maxMp} />
           </div>
+          {c.hpState !== 'normal' && (
+            <p className="notice" style={{ color: '#ff7a6e', marginTop: 0 }}>
+              {c.hpState === 'dying' ? 'Cảnh báo cuối: một ngày tệ nữa là tử trận.' : 'Máu thấp: nhiệm vụ đã được giảm độ khó để dễ có ngày hoàn hảo.'}
+            </p>
+          )}
+          {c.restModeUntil && <p className="notice" style={{ marginTop: 0 }}>Đang dưỡng thương đến {new Date(c.restModeUntil).toLocaleDateString('vi-VN')}</p>}
           {[
             ['gem', 'Gem', fmt(status.gems, 0)],
             ['streak', 'Chuỗi ngày', `${c.streakDays}`],

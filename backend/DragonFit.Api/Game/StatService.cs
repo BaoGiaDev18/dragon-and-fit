@@ -97,11 +97,18 @@ public class StatService(AppDbContext db)
             daily.Add(rate);
         }
 
-        // WIS: protein from the protein quest for now. Meal logging (Phase 2) will supply the log and kcal rates.
-        var days = Math.Max(1, daily.Count);
-        var proteinDays = quests.Count(q => q.Kind == "protein" && q.Status == QuestStatus.Completed);
+        // WIS: from the settled days of the window (each day closes at 4:00 with its meal totals).
+        var settled = await db.DailySettlements.Where(s => s.CharacterId == character.Id && s.Date >= from && !s.IsRestMode)
+            .Select(s => new { s.MealsLogged, s.ActualKcal, s.TargetKcal, s.ProteinG, s.ProteinTargetG }).ToListAsync();
+        double logRate = 0, kcalRate = 0, proteinRate = 0;
+        if (settled.Count > 0)
+        {
+            logRate = settled.Count(s => s.MealsLogged > 0) / (double)settled.Count;
+            kcalRate = settled.Count(s => s.MealsLogged > 0 && SettlementRules.KcalOnTarget(s.TargetKcal, s.ActualKcal)) / (double)settled.Count;
+            proteinRate = settled.Count(s => s.ProteinG >= 0.9 * s.ProteinTargetG) / (double)settled.Count;
+        }
 
         return new StatInputs(strength, waists, profile.HeightCm, avgSteps, daily, EffectiveStreak(character, today),
-            MealLogRate: 0, KcalHitRate: 0, ProteinHitRate: Math.Min(1, proteinDays / (double)days));
+            logRate, kcalRate, proteinRate);
     }
 }

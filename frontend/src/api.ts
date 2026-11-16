@@ -78,6 +78,7 @@ async function request<T>(method: string, path: string, body?: unknown, retry = 
   const data = text ? JSON.parse(text) : null
   if (!res.ok) {
     if (res.status === 401) logout()
+    if (res.status === 410) window.dispatchEvent(new Event('df:dead'))
     const msg = data?.error ?? (data?.errors ? Object.values(data.errors).flat().join(' ') : null) ?? `Lỗi ${res.status}`
     throw new ApiError(res.status, msg, data?.fields)
   }
@@ -93,6 +94,7 @@ export const api = {
   },
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
+  del: (path: string) => request<null>('DELETE', path),
   /** Fetch a private file (proof photo) with the bearer token and return an object URL. */
   async blobUrl(path: string) {
     const res = await fetch(`${BASE}${path}`, { headers: tokens ? { Authorization: `Bearer ${tokens.accessToken}` } : {} })

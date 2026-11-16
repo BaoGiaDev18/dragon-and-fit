@@ -236,6 +236,9 @@ namespace DragonFit.Api.Data.Migrations
                     b.Property<DateTime?>("PurgeAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("RestModeFrom")
+                        .HasColumnType("date");
+
                     b.Property<DateOnly?>("RestModeUntil")
                         .HasColumnType("date");
 
@@ -281,6 +284,77 @@ namespace DragonFit.Api.Data.Migrations
                     b.HasIndex("TitleId");
 
                     b.ToTable("CharacterTitles");
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.DailySettlement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ActualKcal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BurnedKcal")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CharacterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Damage")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Heal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HpAfter")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HpBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsPerfect")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRestMode")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MealsLogged")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PerfectStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ProteinG")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProteinTargetG")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("QuestCompletion")
+                        .HasPrecision(4, 3)
+                        .HasColumnType("numeric(4,3)");
+
+                    b.Property<DateTime?>("SeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TargetKcal")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CharacterId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("DailySettlements");
                 });
 
             modelBuilder.Entity("DragonFit.Api.Domain.Exercise", b =>
@@ -338,6 +412,64 @@ namespace DragonFit.Api.Data.Migrations
                     b.ToTable("Exercises");
                 });
 
+            modelBuilder.Entity("DragonFit.Api.Domain.Food", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("CarbG")
+                        .HasPrecision(5, 1)
+                        .HasColumnType("numeric(5,1)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("FatG")
+                        .HasPrecision(5, 1)
+                        .HasColumnType("numeric(5,1)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("Kcal")
+                        .HasPrecision(6, 1)
+                        .HasColumnType("numeric(6,1)");
+
+                    b.Property<string>("NameVi")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PriceVnd")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("ProteinG")
+                        .HasPrecision(5, 1)
+                        .HasColumnType("numeric(5,1)");
+
+                    b.Property<string>("Serving")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("ServingG")
+                        .HasPrecision(6, 1)
+                        .HasColumnType("numeric(6,1)");
+
+                    b.PrimitiveCollection<List<string>>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Foods");
+                });
+
             modelBuilder.Entity("DragonFit.Api.Domain.GemTransaction", b =>
                 {
                     b.Property<long>("Id")
@@ -368,6 +500,78 @@ namespace DragonFit.Api.Data.Migrations
                     b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("GemTransactions");
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.HpEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CharacterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Detail")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CharacterId", "Date");
+
+                    b.ToTable("HpEvents");
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.MealLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("FoodId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Servings")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("numeric(4,2)");
+
+                    b.Property<string>("Slot")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FoodId");
+
+                    b.HasIndex("UserId", "Date");
+
+                    b.ToTable("MealLogs");
                 });
 
             modelBuilder.Entity("DragonFit.Api.Domain.OnboardingProgress", b =>
@@ -1113,6 +1317,35 @@ namespace DragonFit.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Title");
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.DailySettlement", b =>
+                {
+                    b.HasOne("DragonFit.Api.Domain.Character", null)
+                        .WithMany()
+                        .HasForeignKey("CharacterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.HpEvent", b =>
+                {
+                    b.HasOne("DragonFit.Api.Domain.Character", null)
+                        .WithMany()
+                        .HasForeignKey("CharacterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.MealLog", b =>
+                {
+                    b.HasOne("DragonFit.Api.Domain.Food", "Food")
+                        .WithMany()
+                        .HasForeignKey("FoodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Food");
                 });
 
             modelBuilder.Entity("DragonFit.Api.Domain.OnboardingQuestion", b =>

@@ -27,6 +27,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<GemTransaction> GemTransactions => Set<GemTransaction>();
     public DbSet<ShopItem> ShopItems => Set<ShopItem>();
+    public DbSet<Food> Foods => Set<Food>();
+    public DbSet<MealLog> MealLogs => Set<MealLog>();
+    public DbSet<DailySettlement> DailySettlements => Set<DailySettlement>();
+    public DbSet<HpEvent> HpEvents => Set<HpEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -80,5 +84,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         b.Entity<QuestInstance>().HasIndex(x => new { x.CharacterId, x.Date, x.Slot }).IsUnique();
         b.Entity<Wallet>().HasKey(x => x.UserId);
         b.Entity<GemTransaction>().HasIndex(x => new { x.UserId, x.CreatedAt });
+
+        b.Entity<Food>(e =>
+        {
+            e.HasIndex(x => x.Code).IsUnique();
+            e.Property(x => x.ServingG).HasPrecision(6, 1);
+            e.Property(x => x.Kcal).HasPrecision(6, 1);
+            e.Property(x => x.ProteinG).HasPrecision(5, 1);
+            e.Property(x => x.CarbG).HasPrecision(5, 1);
+            e.Property(x => x.FatG).HasPrecision(5, 1);
+        });
+        b.Entity<MealLog>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.Date });
+            e.Property(x => x.Servings).HasPrecision(4, 2);
+        });
+        // One settlement per character per day: re-running the 4:00 job can never take HP twice.
+        b.Entity<DailySettlement>(e =>
+        {
+            e.HasIndex(x => new { x.CharacterId, x.Date }).IsUnique();
+            e.HasOne<Character>().WithMany().HasForeignKey(x => x.CharacterId);
+            e.Property(x => x.QuestCompletion).HasPrecision(4, 3);
+        });
+        b.Entity<HpEvent>(e =>
+        {
+            e.HasIndex(x => new { x.CharacterId, x.Date });
+            e.HasOne<Character>().WithMany().HasForeignKey(x => x.CharacterId);
+        });
     }
 }

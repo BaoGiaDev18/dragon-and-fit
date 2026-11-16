@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace DragonFit.Api.Game;
 
 /// <summary>Everything the Status screen (B4) needs, in one call.</summary>
-public class StatusService(AppDbContext db, QuestService quests, StatService stats)
+public class StatusService(AppDbContext db, QuestService quests, StatService stats, CharacterService characters)
 {
     public async Task<object> GetAsync(string userId)
     {
@@ -53,13 +53,17 @@ public class StatusService(AppDbContext db, QuestService quests, StatService sta
             character = new
             {
                 character.Name, character.Level, character.TotalXp, xpIntoLevel = into, xpForNext = needed,
-                hp = character.CurrentHp, maxHp = 100, mp = 5, maxMp = 5,
+                hp = character.CurrentHp, maxHp = 100, mp = latest?.Date == today ? latest.EnergyScore ?? 5 : 5, maxMp = 5,
+                hpState = character.CurrentHp switch { > 30 => "normal", > 10 => "critical", _ => "dying" },
+                restModeUntil = character.RestModeUntil >= today ? character.RestModeUntil : null,
+                restDaysLeft = await characters.RestDaysLeftAsync(character, today),
                 status = character.Status.ToString(), character.StreakDays, character.EvolutionStage,
                 title = title?.Name,
                 avatar = avatar is null ? null : new { avatar.Code, avatar.Name, avatar.SpriteSheetUrl },
                 nextEvolutionLevel = Progression.EvolutionLevels.FirstOrDefault(l => l > character.Level),
             },
             gems = wallet?.Gems ?? 0,
+            report = await characters.UnseenReportAsync(character),
             titles,
             stats = new[]
             {
@@ -88,6 +92,7 @@ public class StatusService(AppDbContext db, QuestService quests, StatService sta
                 required = todayQuests.Count(q => q.IsRequired),
                 done = todayQuests.Count(q => q.IsRequired && q.Status == QuestStatus.Completed),
                 questTime = profile.QuestTime.ToString("HH:mm"),
+                measured = latest?.Date == today,
             },
         };
     }

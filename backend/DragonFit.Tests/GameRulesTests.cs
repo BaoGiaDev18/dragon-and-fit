@@ -253,3 +253,78 @@ public class StatCalculatorTests
         Assert.Equal(new DateOnly(2026, 11, 16), DragonFit.Api.Game.StatService.WeekStart(new DateOnly(2026, 11, 22)));
     }
 }
+
+public class SettlementRulesTests
+{
+    static readonly QuestResult Done = new("q", 10, 10, true);
+    static readonly QuestResult Missed = new("q", 10, 0, false);
+
+    static SettlementInput Day(int actual, int done, int meals = 3, decimal? sleep = null, int streak = 0, int hp = 100, bool restDay = false, bool restMode = false) =>
+        new(2000, actual, meals, Enumerable.Range(0, 4).Select(i => i < done ? Done : Missed).ToList(),
+            restDay, restMode, 4, sleep, streak, hp);
+
+    // The example table in plan B10.
+    [Fact] public void Perfect_first_day_heals_7() => Assert.Equal(7, SettlementRules.Settle(Day(2150, 4)).Heal);
+    [Fact] public void Perfect_day_with_sleep_heals_9() => Assert.Equal(9, SettlementRules.Settle(Day(2150, 4, sleep: 7.5m)).Heal);
+    [Fact] public void Overeating_2600_costs_8() => Assert.Equal(8, SettlementRules.Settle(Day(2600, 4)).Damage);
+    [Fact] public void Two_missed_quests_cost_10() => Assert.Equal(10, SettlementRules.Settle(Day(2000, 2)).Damage);
+    [Fact] public void Undereating_1300_costs_10() => Assert.Equal(10, SettlementRules.Settle(Day(1300, 4)).Damage);
+    [Fact] public void No_food_log_costs_10() => Assert.Equal(10, SettlementRules.Settle(Day(0, 4, meals: 0)).Damage);
+
+    [Fact]
+    public void Worst_day_is_capped_at_30()
+    {
+        var r = SettlementRules.Settle(Day(3500, 0));
+        Assert.Equal(30, r.Damage);
+        Assert.Equal(70, r.HpAfter);
+    }
+
+    [Fact]
+    public void Partial_quest_scales_damage()
+    {
+        var r = SettlementRules.Settle(new SettlementInput(2000, 2000, 3, [new("Squat", 36, 20, false)], false, false, 4, null, 0, 100));
+        Assert.Equal(2, r.Damage); // 5 × (1 − 20/36) = 2.2
+    }
+
+    [Fact] public void Fifth_perfect_day_heals_15() => Assert.Equal(15, SettlementRules.Settle(Day(2000, 4, streak: 4)).Heal);
+
+    [Fact]
+    public void Rest_day_waives_quest_damage_but_not_food()
+    {
+        var r = SettlementRules.Settle(Day(2600, 0, restDay: true));
+        Assert.Equal(8, r.Damage);
+    }
+
+    [Fact]
+    public void Rest_mode_no_damage_no_heal_and_keeps_streak()
+    {
+        var r = SettlementRules.Settle(Day(3500, 0, streak: 3, restMode: true));
+        Assert.Equal((0, 0, 3), (r.Damage, r.Heal, r.PerfectStreak));
+    }
+
+    [Fact]
+    public void Never_opening_the_game_on_a_training_day_costs_food_and_quests()
+    {
+        var r = SettlementRules.Settle(new SettlementInput(2000, 0, 0, [], false, false, 4, null, 0, 100));
+        Assert.Equal(30, r.Damage); // 10 food + 20 quests
+    }
+
+    [Fact]
+    public void Four_worst_days_kill_from_full_hp()
+    {
+        var hp = 100;
+        for (var i = 0; i < 4; i++) hp = SettlementRules.Settle(Day(3500, 0, hp: hp)).HpAfter;
+        Assert.Equal(0, hp);
+    }
+
+    [Fact]
+    public void Day_clock_keeps_yesterday_open_until_4am()
+    {
+        var early = new DayClock(new DateTime(2026, 11, 18, 3, 59, 0));
+        var late = new DayClock(new DateTime(2026, 11, 18, 4, 0, 0));
+        Assert.True(early.IsOpen(new DateOnly(2026, 11, 17)));
+        Assert.False(late.IsOpen(new DateOnly(2026, 11, 17)));
+        Assert.Equal(new DateOnly(2026, 11, 16), early.LastClosedDay);
+        Assert.Equal(new DateOnly(2026, 11, 17), late.LastClosedDay);
+    }
+}

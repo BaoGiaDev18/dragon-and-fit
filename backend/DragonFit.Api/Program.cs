@@ -31,12 +31,21 @@ builder.Services
 var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [];
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
 
-builder.Services.AddSingleton(TimeProvider.System);
+if (builder.Environment.IsDevelopment())
+{
+    var devClock = new DevClock();
+    builder.Services.AddSingleton(devClock);
+    builder.Services.AddSingleton<TimeProvider>(devClock);
+}
+else builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IProofStorage, LocalProofStorage>();
 builder.Services.AddScoped<OnboardingService>();
 builder.Services.AddScoped<QuestService>();
 builder.Services.AddScoped<StatusService>();
 builder.Services.AddScoped<StatService>();
+builder.Services.AddScoped<SettlementService>();
+builder.Services.AddScoped<MealService>();
+builder.Services.AddScoped<CharacterService>();
 
 var app = builder.Build();
 
@@ -76,7 +85,18 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGroup("/api/auth").MapIdentityApi<AppUser>();
 app.MapGameEndpoints();
+app.MapJobEndpoints();
+
+// Development only: move the game clock forward to test settlement and death (e.g. {"hours": 24}).
+if (app.Environment.IsDevelopment())
+    app.MapPost("/dev/clock", (DevClockRequest req, DevClock clock) =>
+    {
+        clock.Offset = req.Reset ? TimeSpan.Zero : clock.Offset + TimeSpan.FromHours(req.Hours);
+        return Results.Ok(new { offsetHours = clock.Offset.TotalHours, now = clock.GetUtcNow() });
+    });
 
 app.Run();
 
 public partial class Program;
+
+record DevClockRequest(double Hours, bool Reset = false);

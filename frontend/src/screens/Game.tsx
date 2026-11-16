@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api'
 import { AvatarSprite } from '../components/AvatarSprite'
+import { BodyMetricDialog, MorningReport, RestModeDialog } from '../components/Dialogs'
 import { Keys, Toast, Window, useKey, useToast } from '../components/ui'
 import type { QuestBoard as Board, Reward, Status } from '../types'
+import { MealScreen } from './MealScreen'
 import { QuestBoard } from './QuestBoard'
 import { StatusScreen } from './StatusScreen'
 
-type Tab = 'status' | 'quests'
+type Tab = 'status' | 'quests' | 'meals'
+type DialogName = 'metrics' | 'rest' | null
 
 export function Game({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('status')
   const [status, setStatus] = useState<Status | null>(null)
   const [board, setBoard] = useState<Board | null>(null)
   const [levelUp, setLevelUp] = useState<Reward | null>(null)
+  const [dialog, setDialog] = useState<DialogName>(null)
+  const [reportClosed, setReportClosed] = useState(false)
   const toast = useToast()
 
   const load = useCallback(async () => {
@@ -27,6 +32,12 @@ export function Game({ onLogout }: { onLogout: () => void }) {
 
   useKey('1', () => setTab('status'))
   useKey('2', () => setTab('quests'))
+  useKey('3', () => setTab('meals'))
+
+  async function closeReport() {
+    setReportClosed(true)
+    await api.post('/api/character/report/seen').catch(() => undefined)
+  }
 
   async function changed(reward?: Reward) {
     if (reward) {
@@ -38,7 +49,7 @@ export function Game({ onLogout }: { onLogout: () => void }) {
 
   if (!status || !board) return <div className="scene"><p className="pixel dim" style={{ fontSize: 24 }}>Đang mở cửa doanh trại…</p></div>
 
-  const tabs: [Tab, string, string][] = [['status', 'Trạng thái', '1'], ['quests', 'Nhiệm vụ', '2']]
+  const tabs: [Tab, string, string][] = [['status', 'Trạng thái', '1'], ['quests', 'Nhiệm vụ', '2'], ['meals', 'Thực đơn', '3']]
   return (
     <div className="scene" style={{ paddingTop: 26 }}>
       <header style={{ width: '100%', maxWidth: 1040, display: 'flex', alignItems: 'center', gap: 18, marginBottom: 40 }}>
@@ -49,7 +60,7 @@ export function Game({ onLogout }: { onLogout: () => void }) {
               <span className="kbd" style={{ fontSize: 14 }}>{key}</span>{label}
             </button>
           ))}
-          {['Thực đơn', 'Cửa hàng', 'Xếp hạng'].map(l => (
+          {['Cửa hàng', 'Xếp hạng'].map(l => (
             <button key={l} className="choice" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }} title="Mở ở giai đoạn sau">{l} 🔒</button>
           ))}
         </nav>
@@ -57,13 +68,16 @@ export function Game({ onLogout }: { onLogout: () => void }) {
         <button className="btn ghost small" onClick={onLogout}>Thoát</button>
       </header>
 
-      {tab === 'status'
-        ? <StatusScreen status={status} onGoQuests={() => setTab('quests')} />
-        : <QuestBoard board={board} gems={status.gems} onChanged={changed} toast={toast.show} />}
+      {tab === 'status' && <StatusScreen status={status} onGoQuests={() => setTab('quests')} onDialog={setDialog} />}
+      {tab === 'quests' && <QuestBoard board={board} gems={status.gems} onChanged={changed} toast={toast.show} onGoMeals={() => setTab('meals')} />}
+      {tab === 'meals' && <MealScreen onReward={r => changed(r)} toast={toast.show} />}
 
-      <Keys hints={[['1', 'Trạng thái'], ['2', 'Nhiệm vụ'], ['Esc', 'Đóng']]} />
+      <Keys hints={[['1', 'Trạng thái'], ['2', 'Nhiệm vụ'], ['3', 'Thực đơn'], ['Esc', 'Đóng']]} />
       <Toast msg={toast.msg} onDone={toast.clear} />
       {levelUp && <LevelUp reward={levelUp} status={status} onClose={() => setLevelUp(null)} />}
+      {status.report && !reportClosed && !levelUp && <MorningReport report={status.report} onClose={closeReport} />}
+      {dialog === 'metrics' && <BodyMetricDialog status={status} onClose={() => setDialog(null)} onSaved={async () => { setDialog(null); toast.show('Đã lưu số đo hôm nay'); await load() }} />}
+      {dialog === 'rest' && <RestModeDialog status={status} onClose={() => setDialog(null)} onSaved={async () => { setDialog(null); await load() }} />}
     </div>
   )
 }

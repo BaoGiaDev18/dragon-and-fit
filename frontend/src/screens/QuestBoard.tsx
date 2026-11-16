@@ -5,8 +5,8 @@ import type { Quest, QuestBoard as Board, Reward } from '../types'
 
 const unitLabel = (u: string) => ({ reps: 'rep', seconds: 'giây', steps: 'bước', g: 'g' }[u] ?? u)
 
-export function QuestBoard({ board, gems, onChanged, toast }: {
-  board: Board; gems: number; onChanged: (reward?: Reward) => void; toast: (t: string, err?: boolean) => void
+export function QuestBoard({ board, gems, onChanged, toast, onGoMeals }: {
+  board: Board; gems: number; onChanged: (reward?: Reward) => void; toast: (t: string, err?: boolean) => void; onGoMeals: () => void
 }) {
   const [reporting, setReporting] = useState<Quest | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -57,7 +57,8 @@ export function QuestBoard({ board, gems, onChanged, toast }: {
                     </div>
                     <div className="dim" style={{ fontStyle: 'italic', fontSize: 13.5 }}>{q.narration}</div>
                     {q.exercise?.formTips && <div style={{ fontSize: 12.5, marginTop: 3 }}>Mẹo: {q.exercise.formTips}</div>}
-                    {q.status === 'Partial' && <div className="accent" style={{ fontSize: 12.5 }}>Đã báo {q.doneValue}/{q.targetValue} {unitLabel(q.unit)}</div>}
+                    {q.kind === 'protein' && !finished && <div className="accent" style={{ fontSize: 12.5 }}>Đã nạp {q.doneValue ?? 0}/{q.targetValue} g · tự hoàn thành khi ghi đủ bữa ăn</div>}
+                    {q.status === 'Partial' && q.kind !== 'protein' && <div className="accent" style={{ fontSize: 12.5 }}>Đã báo {q.doneValue}/{q.targetValue} {unitLabel(q.unit)}</div>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div className="pixel" style={{ fontSize: 19 }}>
@@ -69,7 +70,9 @@ export function QuestBoard({ board, gems, onChanged, toast }: {
                           <button className="btn ghost small" disabled={busy === q.id || gems < (board.rerollCost ?? 20)}
                             title={`Đổi bài khác cùng nhóm (${board.rerollCost} Gem)`} onClick={() => reroll(q)}>Đổi</button>
                         )}
-                        <button className="btn small" onClick={() => setReporting(q)}>Báo cáo</button>
+                        {q.canReport
+                          ? <button className="btn small" onClick={() => setReporting(q)}>Báo cáo</button>
+                          : <button className="btn ghost small" onClick={onGoMeals} title="Tự hoàn thành khi ghi bữa ăn">Ghi bữa ăn</button>}
                       </div>
                     )}
                   </div>
