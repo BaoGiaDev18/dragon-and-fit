@@ -1,0 +1,13 @@
+# .NET
+bin/
+obj/
+*.user
+backend/DragonFit.Api/uploads/
+# Node
+node_modules/
+frontend/dist/
+# Local secrets
+.env
+*.local
+appsettings.Local.json
+.DS_Store

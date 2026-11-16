@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/DragonFit.Api/DragonFit.Api.csproj" />
+    <Project Path="backend/DragonFit.Tests/DragonFit.Tests.csproj" />
+  </Folder>
+</Solution>
