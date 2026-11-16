@@ -36,6 +36,39 @@ public static class GameEndpoints
             return Results.NoContent();
         });
 
+        // Shop and forge (Phase 3)
+        api.MapGet("/shop", async (ClaimsPrincipal user, ShopService svc) => Results.Ok(await svc.GetAsync(Uid(user))));
+        api.MapPost("/shop/{id:int}/buy", async (int id, ClaimsPrincipal user, ShopService svc) => Results.Ok(await svc.BuyAsync(Uid(user), id)));
+        api.MapPost("/shop/rest-pass/use", async (ClaimsPrincipal user, ShopService svc) => Results.Ok(await svc.UseRestPassAsync(Uid(user))));
+        var forge = api.MapGroup("/forge");
+        forge.MapGet("", async (ClaimsPrincipal user, ForgeService svc) => Results.Ok(await svc.GetAsync(Uid(user))));
+        forge.MapPost("", async (ForgeRequest req, ClaimsPrincipal user, ForgeService svc) =>
+        {
+            await svc.SaveAsync(Uid(user), req);
+            return Results.NoContent();
+        });
+        forge.MapPost("/sprite", async (HttpRequest http, ClaimsPrincipal user, ForgeService svc) =>
+        {
+            if (!http.HasFormContentType) return Results.BadRequest(new { error = "Cần gửi dạng form." });
+            var file = (await http.ReadFormAsync()).Files.GetFile("sprite");
+            if (file is null) return Results.BadRequest(new { error = "Thiếu file sprite." });
+            if (file.Length > ForgeService.MaxSpriteBytes) return Results.BadRequest(new { error = "File quá lớn (tối đa 1 MB)." });
+            await using var s = file.OpenReadStream();
+            return Results.Ok(new { url = await svc.UploadSpriteAsync(Uid(user), s) });
+        }).DisableAntiforgery();
+        forge.MapDelete("/sprite", async (ClaimsPrincipal user, ForgeService svc) =>
+        {
+            await svc.RemoveSpriteAsync(Uid(user));
+            return Results.NoContent();
+        });
+
+        // Uploaded sprite sheets are public (they will show on the leaderboard).
+        app.MapGet("/sprites/{name}", (string name, ForgeService svc) =>
+        {
+            var (path, exists) = svc.Open(name);
+            return exists ? Results.File(path, "image/png") : Results.NotFound();
+        });
+
         // Food and the daily weigh-in (Phase 2)
         api.MapGet("/foods", async (string? q, MealService svc) => Results.Ok(await svc.SearchFoodsAsync(q)));
         var meals = api.MapGroup("/meals");
@@ -76,7 +109,15 @@ public static class GameEndpoints
             var file = form.Files.GetFile("photo");
             if (file is { Length: > LocalProofStorage.MaxBytes }) return Results.BadRequest(new { error = "Ảnh quá lớn (tối đa 1 MB)." });
             await using var stream = file?.OpenReadStream();
-            return Results.Ok(await svc.CompleteAsync(Uid(user), id, done, stream, file?.ContentType));
+            int[]? sets = null;
+            if (form.TryGetValue("sets", out var raw) && !string.IsNullOrWhiteSpace(raw))
+            {
+                var parts = raw.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length > 10 || parts.Any(p => !int.TryParse(p, out var n) || n < 0 || n > 500))
+                    return Results.BadRequest(new { error = "Danh sách set không hợp lệ." });
+                sets = parts.Select(int.Parse).ToArray();
+            }
+            return Results.Ok(await svc.CompleteAsync(Uid(user), id, done, stream, file?.ContentType, sets));
         }).DisableAntiforgery();
 
         quests.MapPost("/{id:guid}/reroll", async (Guid id, ClaimsPrincipal user, QuestService svc) =>

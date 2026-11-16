@@ -3,12 +3,16 @@ import { api } from '../api'
 import { AvatarSprite } from '../components/AvatarSprite'
 import { BodyMetricDialog, MorningReport, RestModeDialog } from '../components/Dialogs'
 import { Keys, Toast, Window, useKey, useToast } from '../components/ui'
-import type { QuestBoard as Board, Reward, Status } from '../types'
+import { getSound, onSoundChange, resumeMusicIfEnabled, setSound, sfx } from '../sound'
+import type { Quest, QuestBoard as Board, Reward, Status } from '../types'
+import { BattleScreen } from './BattleScreen'
+import { ForgeScreen } from './ForgeScreen'
 import { MealScreen } from './MealScreen'
 import { QuestBoard } from './QuestBoard'
+import { ShopScreen } from './ShopScreen'
 import { StatusScreen } from './StatusScreen'
 
-type Tab = 'status' | 'quests' | 'meals'
+type Tab = 'status' | 'quests' | 'meals' | 'shop' | 'forge'
 type DialogName = 'metrics' | 'rest' | null
 
 export function Game({ onLogout }: { onLogout: () => void }) {
@@ -18,6 +22,15 @@ export function Game({ onLogout }: { onLogout: () => void }) {
   const [levelUp, setLevelUp] = useState<Reward | null>(null)
   const [dialog, setDialog] = useState<DialogName>(null)
   const [reportClosed, setReportClosed] = useState(false)
+  const [battle, setBattle] = useState<Quest | null>(null)
+  const [sound, setSoundState] = useState(getSound())
+  useEffect(() => onSoundChange(() => setSoundState(getSound())), [])
+  // Browsers block audio until the first click; start the music then if it was switched on.
+  useEffect(() => {
+    const once = () => { resumeMusicIfEnabled(); window.removeEventListener('pointerdown', once) }
+    window.addEventListener('pointerdown', once)
+    return () => window.removeEventListener('pointerdown', once)
+  }, [])
   const toast = useToast()
 
   const load = useCallback(async () => {
@@ -33,6 +46,8 @@ export function Game({ onLogout }: { onLogout: () => void }) {
   useKey('1', () => setTab('status'))
   useKey('2', () => setTab('quests'))
   useKey('3', () => setTab('meals'))
+  useKey('4', () => setTab('shop'))
+  useKey('5', () => setTab('forge'))
 
   async function closeReport() {
     setReportClosed(true)
@@ -41,38 +56,49 @@ export function Game({ onLogout }: { onLogout: () => void }) {
 
   async function changed(reward?: Reward) {
     if (reward) {
-      if (reward.levelAfter > reward.levelBefore || reward.evolvedToStage) setLevelUp(reward)
-      else toast.show(`+${reward.xpGained} XP · +${reward.gemsGained} Gem${reward.questStatus === 'Partial' ? ' (hoàn thành một phần)' : ''}`)
+      if (reward.levelAfter > reward.levelBefore || reward.evolvedToStage) { sfx('levelup'); setLevelUp(reward) }
+      else if (reward.gemsGained > 0) sfx('gem')
+      if (!(reward.levelAfter > reward.levelBefore || reward.evolvedToStage)) toast.show(`+${reward.xpGained} XP · +${reward.gemsGained} Gem${reward.questStatus === 'Partial' ? ' (hoàn thành một phần)' : ''}`)
     }
     await load()
   }
 
   if (!status || !board) return <div className="scene"><p className="pixel dim" style={{ fontSize: 24 }}>Đang mở cửa doanh trại…</p></div>
 
-  const tabs: [Tab, string, string][] = [['status', 'Trạng thái', '1'], ['quests', 'Nhiệm vụ', '2'], ['meals', 'Thực đơn', '3']]
+  const tabs: [Tab, string, string][] = [['status', 'Trạng thái', '1'], ['quests', 'Nhiệm vụ', '2'], ['meals', 'Thực đơn', '3'], ['shop', 'Cửa hàng', '4'], ['forge', 'Lò rèn', '5']]
   return (
     <div className="scene" style={{ paddingTop: 26 }}>
-      <header style={{ width: '100%', maxWidth: 1040, display: 'flex', alignItems: 'center', gap: 18, marginBottom: 40 }}>
-        <span className="pixel accent" style={{ fontSize: 34 }}>Dragon<span style={{ color: 'var(--text)' }}>&amp;</span>Fit</span>
-        <nav style={{ display: 'flex', gap: 8, flex: 1 }}>
+      <header style={{ width: '100%', maxWidth: 1040, marginBottom: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span className="pixel accent" style={{ fontSize: 34, flex: 1 }}>Dragon<span style={{ color: 'var(--text)' }}>&amp;</span>Fit</span>
+          <span className="pixel" style={{ fontSize: 22, marginRight: 8 }}><span className="accent">◆</span> {status.gems.toLocaleString('vi-VN')}</span>
+          <button className="btn ghost small" title="Hiệu ứng âm thanh" aria-pressed={sound.sfx}
+            onClick={() => setSound({ sfx: !sound.sfx })}>{sound.sfx ? '♪ Tiếng: bật' : '♪ Tiếng: tắt'}</button>
+          <button className="btn ghost small" title="Nhạc nền" aria-pressed={sound.music}
+            onClick={() => setSound({ music: !sound.music })}>{sound.music ? '♫ Nhạc: bật' : '♫ Nhạc: tắt'}</button>
+          <button className="btn ghost small" onClick={onLogout}>Thoát</button>
+        </div>
+        <nav style={{ display: 'flex', gap: 8 }}>
           {tabs.map(([t, label, key]) => (
-            <button key={t} className={`choice ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
+            <button key={t} className={`choice ${tab === t ? 'on' : ''}`} style={{ whiteSpace: 'nowrap' }} onClick={() => { sfx('click'); setTab(t) }}>
               <span className="kbd" style={{ fontSize: 14 }}>{key}</span>{label}
             </button>
           ))}
-          {['Cửa hàng', 'Xếp hạng'].map(l => (
-            <button key={l} className="choice" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }} title="Mở ở giai đoạn sau">{l} 🔒</button>
-          ))}
+          <button className="choice" disabled style={{ opacity: 0.4, cursor: 'not-allowed', whiteSpace: 'nowrap' }} title="Mở ở giai đoạn sau">Xếp hạng 🔒</button>
         </nav>
-        <span className="pixel" style={{ fontSize: 22 }}><span className="accent">◆</span> {status.gems.toLocaleString('vi-VN')}</span>
-        <button className="btn ghost small" onClick={onLogout}>Thoát</button>
       </header>
 
       {tab === 'status' && <StatusScreen status={status} onGoQuests={() => setTab('quests')} onDialog={setDialog} />}
-      {tab === 'quests' && <QuestBoard board={board} gems={status.gems} onChanged={changed} toast={toast.show} onGoMeals={() => setTab('meals')} />}
+      {tab === 'quests' && <QuestBoard board={board} gems={status.gems} onChanged={changed} toast={toast.show} onGoMeals={() => setTab('meals')} onBattle={setBattle} />}
+      {tab === 'shop' && <ShopScreen onChanged={() => void load()} toast={toast.show} />}
+      {tab === 'forge' && <ForgeScreen onChanged={() => void load()} toast={toast.show} />}
       {tab === 'meals' && <MealScreen onReward={r => changed(r)} toast={toast.show} />}
 
-      <Keys hints={[['1', 'Trạng thái'], ['2', 'Nhiệm vụ'], ['3', 'Thực đơn'], ['Esc', 'Đóng']]} />
+      <Keys hints={[['1–5', 'Chuyển màn hình'], ['Enter', 'Xác nhận'], ['Esc', 'Đóng']]} />
+      {battle && status.character.avatar && (
+        <BattleScreen quest={battle} sheetUrl={status.character.avatar.spriteSheetUrl} stage={status.character.evolutionStage}
+          proofRequired={board.proofRequired ?? true} onClose={() => setBattle(null)} onDone={r => { setBattle(null); void changed(r) }} />
+      )}
       <Toast msg={toast.msg} onDone={toast.clear} />
       {levelUp && <LevelUp reward={levelUp} status={status} onClose={() => setLevelUp(null)} />}
       {status.report && !reportClosed && !levelUp && <MorningReport report={status.report} onClose={closeReport} />}

@@ -117,7 +117,7 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
     }
 
     /// <summary>Report a quest (fully or partly). Rewards are paid only for the part not already paid.</summary>
-    public async Task<RewardResult> CompleteAsync(string userId, Guid questId, int doneValue, Stream? photo, string? contentType)
+    public async Task<RewardResult> CompleteAsync(string userId, Guid questId, int doneValue, Stream? photo, string? contentType, int[]? setReps = null)
     {
         var (character, profile, _, _) = await LoadAsync(userId);
         var quest = await db.QuestInstances.Include(q => q.Template)
@@ -135,7 +135,10 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
             quest.ProofUrl = await storage.SaveAsync(userId, quest.Id, photo, contentType ?? "image/webp");
         if (ProofRequired && quest.ProofUrl is null) throw new GameException("Cần ảnh chụp làm bằng chứng.");
 
-        var ratio = Math.Min(1m, doneValue / (decimal)quest.TargetValue);
+        // From a battle the exact total counts (7 + 6 + 7 of 3 × 7 = 95%), not the rounded per-set average.
+        var ratio = setReps is { Length: > 0 }
+            ? Math.Min(1m, setReps.Sum() / (decimal)(quest.TargetValue * quest.Sets))
+            : Math.Min(1m, doneValue / (decimal)quest.TargetValue);
         var mult = Progression.StreakMultiplier(character.StreakDays);
         var xpTotal = (int)Math.Round(quest.Xp * ratio * mult);
         var gemsTotal = (int)Math.Round(quest.Gems * ratio);
@@ -147,6 +150,16 @@ public class QuestService(AppDbContext db, TimeProvider clock, IProofStorage sto
         quest.CompletedAt = clock.GetUtcNow().UtcDateTime;
         quest.AwardedXp += xp;
         quest.AwardedGems += gems;
+
+        // A battle (Phase 3) sends the reps of every set; they become a workout session for later records.
+        if (setReps is { Length: > 0 } && quest.ExerciseId is { } exId)
+        {
+            var ex = await db.Exercises.FindAsync(exId);
+            var session = new WorkoutSession { UserId = userId, SessionType = SessionType.Normal, QuestInstanceId = quest.Id, StartedAt = clock.GetUtcNow().UtcDateTime };
+            foreach (var reps in setReps.Where(r => r > 0).Take(10))
+                session.Sets.Add(new WorkoutSet { ExerciseId = exId, Reps = reps, KcalBurned = (ex?.KcalPerRep ?? 0) * reps });
+            db.WorkoutSessions.Add(session);
+        }
 
         // Save the quest first so the "all required quests done today" check below sees it.
         await db.SaveChangesAsync();

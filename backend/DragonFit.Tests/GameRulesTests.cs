@@ -328,3 +328,20 @@ public class SettlementRulesTests
         Assert.Equal(new DateOnly(2026, 11, 17), late.LastClosedDay);
     }
 }
+
+public class SpriteSheetTests
+{
+    static byte[] Png(uint w, uint h)
+    {
+        var b = new byte[64];
+        new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(b, 0);
+        "IHDR"u8.ToArray().CopyTo(b, 12);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(b.AsSpan(16), w);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(b.AsSpan(20), h);
+        return b;
+    }
+
+    [Fact] public void Correct_sheet_passes() => Assert.Null(ForgeService.ValidateSheet(Png(256, 384)));
+    [Fact] public void Wrong_size_fails() => Assert.Contains("256 × 384", ForgeService.ValidateSheet(Png(64, 64)));
+    [Fact] public void Non_png_fails() => Assert.Equal("File phải là ảnh PNG.", ForgeService.ValidateSheet(new byte[100]));
+}

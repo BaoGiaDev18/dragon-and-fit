@@ -216,6 +216,9 @@ namespace DragonFit.Api.Data.Migrations
                     b.Property<int>("CurrentHp")
                         .HasColumnType("integer");
 
+                    b.Property<string>("CustomSpriteKey")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -240,6 +243,9 @@ namespace DragonFit.Api.Data.Migrations
                         .HasColumnType("date");
 
                     b.Property<DateOnly?>("RestModeUntil")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("RestPassDate")
                         .HasColumnType("date");
 
                     b.Property<int>("Status")
@@ -822,6 +828,39 @@ namespace DragonFit.Api.Data.Migrations
                     b.ToTable("PlayerProfiles");
                 });
 
+            modelBuilder.Entity("DragonFit.Api.Domain.Purchase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Price")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("PurchasedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ShopItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("UsedForDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShopItemId");
+
+                    b.HasIndex("UserId", "ShopItemId");
+
+                    b.ToTable("Purchases");
+                });
+
             modelBuilder.Entity("DragonFit.Api.Domain.QuestInstance", b =>
                 {
                     b.Property<Guid>("Id")
@@ -985,6 +1024,15 @@ namespace DragonFit.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Code")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1003,6 +1051,10 @@ namespace DragonFit.Api.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("\"Code\" IS NOT NULL");
 
                     b.ToTable("ShopItems");
                 });
@@ -1364,6 +1416,17 @@ namespace DragonFit.Api.Data.Migrations
                         .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DragonFit.Api.Domain.Purchase", b =>
+                {
+                    b.HasOne("DragonFit.Api.Domain.ShopItem", "ShopItem")
+                        .WithMany()
+                        .HasForeignKey("ShopItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ShopItem");
                 });
 
             modelBuilder.Entity("DragonFit.Api.Domain.QuestInstance", b =>

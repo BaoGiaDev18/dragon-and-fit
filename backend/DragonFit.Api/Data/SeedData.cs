@@ -18,6 +18,7 @@ public static class SeedData
         await SeedOnboarding(db);
         await PatchQuestions(db);
         await SeedFoods(db);
+        await SeedShop(db);
     }
 
     // Character names are shown in the Pixelify Sans pixel font, which has no Vietnamese
@@ -309,5 +310,16 @@ public static class SeedData
 
         static Food F(string code, string name, string serving, decimal g, decimal kcal, decimal p, decimal c, decimal f, int price, List<string> tags) =>
             new() { Code = code, NameVi = name, Serving = serving, ServingG = g, Kcal = kcal, ProteinG = p, CarbG = c, FatG = f, PriceVnd = price, Tags = tags };
+    }
+
+    static async Task SeedShop(AppDbContext db)
+    {
+        if (await db.ShopItems.AnyAsync(i => i.Code == "rest_pass")) return;
+        db.ShopItems.Add(new ShopItem
+        {
+            Code = "rest_pass", Kind = "utility", Price = 300, Name = "Vé nghỉ",
+            Description = "Dùng cho hôm nay: bỏ nhiệm vụ không mất máu và không mất chuỗi ngày. Ăn uống vẫn được tính.",
+        });
+        await db.SaveChangesAsync();
     }
 }

@@ -67,7 +67,7 @@ public class SettlementService(AppDbContext db, TimeProvider clock)
         var result = SettlementRules.Settle(new SettlementInput(
             targetKcal, actualKcal, meals.Count,
             quests.Select(q => new QuestResult(q.Title, q.TargetValue, q.DoneValue ?? 0, q.Status == QuestStatus.Completed)).ToList(),
-            ScheduledRestDay: !training, RestMode: restMode, MissedQuestCountIfNone: training ? 4 : 0,
+            ScheduledRestDay: !training || character.RestPassDate == date, RestMode: restMode, MissedQuestCountIfNone: training ? 4 : 0,
             SleepHours: sleep, PreviousPerfectStreak: previous, HpBefore: character.CurrentHp));
 
         db.DailySettlements.Add(new DailySettlement

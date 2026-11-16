@@ -5,8 +5,9 @@ import type { Quest, QuestBoard as Board, Reward } from '../types'
 
 const unitLabel = (u: string) => ({ reps: 'rep', seconds: 'giây', steps: 'bước', g: 'g' }[u] ?? u)
 
-export function QuestBoard({ board, gems, onChanged, toast, onGoMeals }: {
+export function QuestBoard({ board, gems, onChanged, toast, onGoMeals, onBattle }: {
   board: Board; gems: number; onChanged: (reward?: Reward) => void; toast: (t: string, err?: boolean) => void; onGoMeals: () => void
+  onBattle: (q: Quest) => void
 }) {
   const [reporting, setReporting] = useState<Quest | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -70,7 +71,12 @@ export function QuestBoard({ board, gems, onChanged, toast, onGoMeals }: {
                           <button className="btn ghost small" disabled={busy === q.id || gems < (board.rerollCost ?? 20)}
                             title={`Đổi bài khác cùng nhóm (${board.rerollCost} Gem)`} onClick={() => reroll(q)}>Đổi</button>
                         )}
-                        {q.canReport
+                        {q.canReport && q.exercise && q.status === 'Pending' && q.unit !== 'steps' && q.exercise.group !== 'mobility'
+                          ? <>
+                              <button className="btn ghost small" title="Báo nhanh không qua trận đánh" onClick={() => setReporting(q)}>Báo cáo</button>
+                              <button className="btn small" onClick={() => onBattle(q)}>Chiến đấu</button>
+                            </>
+                          : q.canReport
                           ? <button className="btn small" onClick={() => setReporting(q)}>Báo cáo</button>
                           : <button className="btn ghost small" onClick={onGoMeals} title="Tự hoàn thành khi ghi bữa ăn">Ghi bữa ăn</button>}
                       </div>

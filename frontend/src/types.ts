@@ -35,7 +35,7 @@ export type Status = {
     name: string; level: number; totalXp: number; xpIntoLevel: number; xpForNext: number
     hp: number; maxHp: number; mp: number; maxMp: number; streakDays: number; evolutionStage: number
     title: string | null; avatar: { code: string; name: string; spriteSheetUrl: string } | null; nextEvolutionLevel: number
-    hpState: 'normal' | 'critical' | 'dying'; restModeUntil: string | null; restDaysLeft: number
+    hpState: 'normal' | 'critical' | 'dying'; restModeUntil: string | null; restDaysLeft: number; restPassToday: boolean
   }
   gems: number
   report: SettlementReport | null

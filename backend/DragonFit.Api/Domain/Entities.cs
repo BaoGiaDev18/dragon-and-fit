@@ -30,6 +30,8 @@ public class Character
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? DiedAt { get; set; }
     public DateTime? PurgeAt { get; set; }
+    public DateOnly? RestPassDate { get; set; }       // a rest pass covers this day (B2 shop)
+    public string? CustomSpriteKey { get; set; }       // uploaded sprite sheet (B4)
     public DateOnly? RestModeFrom { get; set; }
     public DateOnly? RestModeUntil { get; set; }
 }
@@ -297,10 +299,24 @@ public class ShopItem
 {
     public int Id { get; set; }
     public string Name { get; set; } = "";
+    public string? Code { get; set; }               // utility items, e.g. "rest_pass"
+    public string? Description { get; set; }
     public string Kind { get; set; } = "personal"; // utility / cosmetic / personal
     public string? Size { get; set; }               // small / medium / large
     public int Price { get; set; }
     public string? OwnerUserId { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class Purchase
+{
+    public long Id { get; set; }
+    public string UserId { get; set; } = "";
+    public int ShopItemId { get; set; }
+    public ShopItem? ShopItem { get; set; }
+    public int Price { get; set; }
+    public DateTime PurchasedAt { get; set; } = DateTime.UtcNow;
+    public DateOnly? UsedForDate { get; set; }       // rest pass: the day it covered
 }
 
 // ---------------------------------------------------------------- Food (Phase 2)

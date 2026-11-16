@@ -35,7 +35,8 @@ public class CharacterService(AppDbContext db, TimeProvider clock, SettlementSer
             if (dead is not null)
             {
                 var title = dead.ActiveTitleId is { } t ? await db.Titles.Where(x => x.Id == t).Select(x => x.Name).FirstOrDefaultAsync() : null;
-                var avatar = await db.AvatarModels.Where(a => a.Id == dead.AvatarModelId).Select(a => a.SpriteSheetUrl).FirstOrDefaultAsync();
+                var avatar = ForgeService.SpriteUrl(dead.CustomSpriteKey)
+                             ?? await db.AvatarModels.Where(a => a.Id == dead.AvatarModelId).Select(a => a.SpriteSheetUrl).FirstOrDefaultAsync();
                 var days = await db.DailySettlements.Where(s => s.CharacterId == dead.Id).OrderByDescending(s => s.Date).Take(5)
                     .Select(s => new { s.Date, s.Damage, s.Heal, s.HpAfter, s.ActualKcal, s.TargetKcal, s.MealsLogged, s.QuestCompletion }).ToListAsync();
                 death = new

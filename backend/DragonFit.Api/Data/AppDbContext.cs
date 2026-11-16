@@ -28,6 +28,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<GemTransaction> GemTransactions => Set<GemTransaction>();
     public DbSet<ShopItem> ShopItems => Set<ShopItem>();
     public DbSet<Food> Foods => Set<Food>();
+    public DbSet<Purchase> Purchases => Set<Purchase>();
     public DbSet<MealLog> MealLogs => Set<MealLog>();
     public DbSet<DailySettlement> DailySettlements => Set<DailySettlement>();
     public DbSet<HpEvent> HpEvents => Set<HpEvent>();
@@ -84,6 +85,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         b.Entity<QuestInstance>().HasIndex(x => new { x.CharacterId, x.Date, x.Slot }).IsUnique();
         b.Entity<Wallet>().HasKey(x => x.UserId);
         b.Entity<GemTransaction>().HasIndex(x => new { x.UserId, x.CreatedAt });
+
+        b.Entity<ShopItem>().HasIndex(x => x.Code).IsUnique().HasFilter("\"Code\" IS NOT NULL");
+        b.Entity<Purchase>().HasIndex(x => new { x.UserId, x.ShopItemId });
 
         b.Entity<Food>(e =>
         {
