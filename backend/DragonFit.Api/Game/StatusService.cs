@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace DragonFit.Api.Game;
 
 /// <summary>Everything the Status screen (B4) needs, in one call.</summary>
-public class StatusService(AppDbContext db, QuestService quests)
+public class StatusService(AppDbContext db, QuestService quests, StatService stats)
 {
     public async Task<object> GetAsync(string userId)
     {
@@ -15,10 +15,7 @@ public class StatusService(AppDbContext db, QuestService quests)
         var titles = await db.CharacterTitles.Where(t => t.CharacterId == character.Id).Include(t => t.Title)
             .OrderBy(t => t.Title!.MinLevel).Select(t => new { t.Title!.Code, t.Title.Name, t.Title.MinLevel }).ToListAsync();
         var wallet = await db.Wallets.FindAsync(userId);
-        var snapshots = await db.StatSnapshots.Where(s => s.CharacterId == character.Id)
-            .OrderByDescending(s => s.Date).Take(2).ToListAsync();
-        var current = snapshots.FirstOrDefault();
-        var previous = snapshots.Skip(1).FirstOrDefault();
+        var (current, previous) = await stats.RefreshAsync(character, profile, today);
         var metrics = await db.BodyMetrics.Where(m => m.UserId == userId).OrderBy(m => m.Date).ToListAsync();
         var latest = metrics.LastOrDefault();
         var first = metrics.FirstOrDefault();
@@ -29,7 +26,7 @@ public class StatusService(AppDbContext db, QuestService quests)
         var targets = Nutrition.Calculate(profile.Sex, weight, profile.HeightCm, today.Year - profile.BirthYear, profile.TrainingDaysPerWeek, profile.Goal);
         var (into, needed) = Progression.LevelProgress(character.TotalXp);
 
-        int Delta(Func<StatSnapshot, int> f) => current is null || previous is null ? 0 : f(current) - f(previous);
+        int Delta(Func<StatSnapshot, int> f) => previous is null ? 0 : f(current) - f(previous);
 
         // Skill wheel (B4): tier per exercise group from the first trial and from finished quests;
         // a node glows when the group was trained in the last 7 days.
@@ -66,11 +63,16 @@ public class StatusService(AppDbContext db, QuestService quests)
             titles,
             stats = new[]
             {
-                new { key = "STR", name = "Sức mạnh", value = current?.Str ?? 0, delta = Delta(s => s.Str) },
-                new { key = "VIT", name = "Thể chất", value = current?.Vit ?? 0, delta = Delta(s => s.Vit) },
-                new { key = "END", name = "Sức bền", value = current?.End ?? 0, delta = Delta(s => s.End) },
-                new { key = "DIS", name = "Kỷ luật", value = current?.Dis ?? 0, delta = Delta(s => s.Dis) },
-                new { key = "WIS", name = "Trí tuệ", value = current?.Wis ?? 0, delta = Delta(s => s.Wis) },
+                new { key = "STR", name = "Sức mạnh", value = current.Str, delta = Delta(s => s.Str),
+                      hint = "Bậc bài tập và số rep tốt nhất của 4 nhóm Đẩy, Kéo, Chân, Core trong 28 ngày" },
+                new { key = "VIT", name = "Thể chất", value = current.Vit, delta = Delta(s => s.Vit),
+                      hint = "Tỉ lệ vòng bụng / chiều cao (trung vị 3 lần đo gần nhất); giảm 1 cm vòng bụng ≈ +1" },
+                new { key = "END", name = "Sức bền", value = current.End, delta = Delta(s => s.End),
+                      hint = "Số bước trung bình 7 ngày ÷ 150" },
+                new { key = "DIS", name = "Kỷ luật", value = current.Dis, delta = Delta(s => s.Dis),
+                      hint = "Tỉ lệ hoàn thành nhiệm vụ bắt buộc 28 ngày và chuỗi ngày" },
+                new { key = "WIS", name = "Trí tuệ", value = current.Wis, delta = Delta(s => s.Wis),
+                      hint = "Ngày ghi bữa ăn, ngày ăn đúng mục tiêu kcal và ngày đạt protein trong 28 ngày" },
             },
             skills,
             body = new

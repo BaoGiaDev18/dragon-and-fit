@@ -36,6 +36,7 @@ builder.Services.AddSingleton<IProofStorage, LocalProofStorage>();
 builder.Services.AddScoped<OnboardingService>();
 builder.Services.AddScoped<QuestService>();
 builder.Services.AddScoped<StatusService>();
+builder.Services.AddScoped<StatService>();
 
 var app = builder.Build();
 

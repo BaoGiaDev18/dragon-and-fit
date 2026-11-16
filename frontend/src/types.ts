@@ -27,7 +27,7 @@ export type OnboardingState = {
   avatars: AvatarInfo[]
 }
 
-export type Stat = { key: string; name: string; value: number; delta: number }
+export type Stat = { key: string; name: string; value: number; delta: number; hint: string }
 export type Skill = { group: string; name: string; tier: number; maxTier: number; active: boolean; completed: number }
 
 export type Status = {

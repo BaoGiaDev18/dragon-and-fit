@@ -219,18 +219,6 @@ public class OnboardingService(AppDbContext db, TimeProvider clock)
                 });
             }
 
-        // Starting stats (refined by the real formulas in Phase 2).
-        var tiers = QuestGenerator.TiersFromTrial(pushCode, Int("test_pushup"), Int("test_squat"), Int("test_plank"), Int("test_row"));
-        db.StatSnapshots.Add(new StatSnapshot
-        {
-            CharacterId = character.Id, Date = today,
-            Str = tiers["push"] + tiers["legs"] + tiers["pull"],
-            Vit = 10,
-            End = 1 + Math.Max(0, ((profile.BaselineSteps ?? 3000) - 3000) / 1000),
-            Dis = 1,
-            Wis = 1,
-        });
-
         var wallet = await db.Wallets.FindAsync(userId);
         if (wallet is null) { wallet = new Wallet { UserId = userId }; db.Wallets.Add(wallet); }
         wallet.Gems += 100;

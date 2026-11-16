@@ -196,3 +196,60 @@ public class CharacterNameTests
     public void Accents_symbols_and_double_spaces_fail(string name) =>
         Assert.Equal("bad", AnswerValidator.Validate(NameQ(), JsonDocument.Parse(JsonSerializer.Serialize(name)).RootElement).Error);
 }
+
+public class StatCalculatorTests
+{
+    [Fact]
+    public void Strength_example_from_plan_is_35()
+    {
+        var groups = new Dictionary<string, GroupBest>
+        {
+            ["push"] = new(3, 12, false),  // knee push-up 12 → 14
+            ["legs"] = new(2, 20, false),  // squat 20 → 10
+            ["pull"] = new(2, 10, false),  // backpack row 10 → 8
+            ["core"] = new(2, 40, true),   // plank 40 s → 10
+        };
+        Assert.Equal(35, StatCalculator.Strength(groups));
+    }
+
+    [Fact]
+    public void Strength_caps_at_100()
+    {
+        var max = StatCalculator.StrengthGroups.ToDictionary(g => g, _ => new GroupBest(5, 50, false));
+        Assert.Equal(100, StatCalculator.Strength(max));
+    }
+
+    [Theory]
+    [InlineData(86, 85)]
+    [InlineData(80, 91)]
+    [InlineData(60, 100)]   // very low ratio earns nothing extra
+    public void Vitality_from_waist_to_height(int waist, int expected) =>
+        Assert.Equal(expected, StatCalculator.Vitality([waist], 170));
+
+    [Fact]
+    public void Vitality_uses_median_so_one_bad_measurement_does_not_count() =>
+        Assert.Equal(StatCalculator.Vitality([86], 170), StatCalculator.Vitality([86, 70, 86], 170));
+
+    [Theory]
+    [InlineData(5500, 37)]
+    [InlineData(10000, 67)]
+    [InlineData(30000, 100)]
+    public void Endurance_from_steps(int steps, int expected) => Assert.Equal(expected, StatCalculator.Endurance(steps));
+
+    [Fact]
+    public void Discipline_example_is_79()
+    {
+        var days = Enumerable.Repeat(0.9, 28).ToList();
+        Assert.Equal(79, StatCalculator.Discipline(days, 10));
+    }
+
+    [Fact]
+    public void Wisdom_example_is_76() => Assert.Equal(76, StatCalculator.Wisdom(25 / 28.0, 18 / 28.0, 20 / 28.0));
+
+    [Fact]
+    public void Week_starts_on_monday()
+    {
+        Assert.Equal(new DateOnly(2026, 11, 16), DragonFit.Api.Game.StatService.WeekStart(new DateOnly(2026, 11, 17)));
+        Assert.Equal(new DateOnly(2026, 11, 16), DragonFit.Api.Game.StatService.WeekStart(new DateOnly(2026, 11, 22)));
+    }
+}

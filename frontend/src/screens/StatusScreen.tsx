@@ -41,7 +41,7 @@ export function StatusScreen({ status, onGoQuests }: { status: Status; onGoQuest
 
           <div>
             {status.stats.map(s => (
-              <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 0' }}>
+              <div key={s.key} title={s.hint} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 0', cursor: 'help' }}>
                 <span style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', border: '1px solid #3b3e43', background: 'var(--bg-inset)' }}>
                   <Icon name={s.key} />
                 </span>
